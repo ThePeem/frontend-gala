@@ -11,7 +11,7 @@ interface Nominado {
   nombre: string;
   descripcion: string | null;
   imagen: string | null; // URL de la imagen si la tienes
-  usuarios_vinculados_detalles?: any; // Si es un objeto complejo que aún no sabes su forma, usa 'any' o define otra interfaz
+  // usuarios_vinculados_detalles?: any; // Si es un objeto complejo que aún no sabes su forma, usa 'any' o define otra interfaz
   activo: boolean;
 }
 
