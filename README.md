@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gala Premios Piorn - Frontend
 
-## Getting Started
+Frontend Next.js para el sistema de votación de la Gala Premios Piorn.
 
-First, run the development server:
+## 🚀 Despliegue Rápido
 
+### 1. Clonar y configurar
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <tu-repositorio-frontend>
+cd frontend-gala
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configurar variables de entorno
+```bash
+cp env.example .env.local
+# Editar .env.local con tus valores
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Ejecutar en desarrollo
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Construir para producción
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## 🌐 Despliegue en Vercel
 
-To learn more about Next.js, take a look at the following resources:
+### Variables de entorno necesarias:
+- `NEXT_PUBLIC_API_URL`: https://galapremiospiorn.onrender.com
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Configuración automática:
+- Vercel detectará automáticamente que es un proyecto Next.js
+- El build command será: `npm run build`
+- El output directory será: `.next`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📚 Estructura del Proyecto
 
-## Deploy on Vercel
+```
+src/
+├── app/              # App Router (Next.js 13+)
+│   ├── login/        # Página de login
+│   ├── register/     # Página de registro
+│   ├── layout.tsx    # Layout principal
+│   └── page.tsx      # Página principal
+├── components/       # Componentes reutilizables
+│   ├── LoginForm.tsx
+│   └── RegisterForm.tsx
+└── utils/            # Utilidades
+    └── AuthContext.tsx
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔧 Funcionalidades Implementadas
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### ✅ Completado:
+- Sistema de autenticación con contexto
+- Formularios de login y registro
+- Página principal con resultados públicos
+- Configuración de API con Axios
+- Manejo de estados de carga y error
+
+### 🚧 Pendiente:
+- Dashboard del usuario
+- Sistema de votación
+- Panel de administración
+- Gestión de premios y nominados
+- Sistema de resultados en tiempo real
+
+## 📱 Páginas Disponibles
+
+- `/` - Página principal (resultados públicos)
+- `/login` - Iniciar sesión
+- `/register` - Registro de usuario
+
+## 🔌 API Integration
+
+El frontend se comunica con el backend a través de:
+- **Base URL**: Configurada en `NEXT_PUBLIC_API_URL`
+- **Autenticación**: Tokens JWT
+- **Endpoints**: REST API del backend Django
+
+## 🎨 Estilos
+
+- CSS Modules para estilos específicos de componentes
+- Estilos inline para formularios (se puede migrar a CSS Modules)
+- Fuentes de Google Fonts (Geist)
+
+## 🚀 Próximos Pasos
+
+1. **Implementar dashboard del usuario**
+2. **Crear sistema de votación**
+3. **Añadir panel de administración**
+4. **Mejorar UI/UX con componentes más sofisticados**
+5. **Implementar notificaciones en tiempo real**
+6. **Añadir tests unitarios**
+
+## 📝 Notas de Desarrollo
+
+- Usar `npm run dev` para desarrollo local
+- El backend debe estar corriendo en `http://localhost:8000` para desarrollo
+- Las variables de entorno deben empezar con `NEXT_PUBLIC_` para ser accesibles en el cliente
