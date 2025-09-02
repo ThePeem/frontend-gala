@@ -28,19 +28,22 @@ const RegisterForm: React.FC = () => {
     script.async = true;
     script.defer = true;
     script.onload = () => {
-      // @ts-ignore
-      if (window.google) {
-        // @ts-ignore
-        window.google.accounts.id.initialize({
+      type GoogleAccountsId = {
+        initialize: (opts: { client_id: string; callback: (response: { credential?: string }) => void }) => void;
+        renderButton: (element: HTMLElement | null, options: { theme: 'outline' | 'filled_blue' | 'filled_black'; size: 'large' | 'medium' | 'small'; text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin'; shape?: 'rectangular' | 'pill' | 'circle' | 'square' }) => void;
+      };
+      type GoogleSDK = { accounts: { id: GoogleAccountsId } };
+      const googleObj = (window as unknown as { google?: GoogleSDK }).google;
+      if (googleObj) {
+        googleObj.accounts.id.initialize({
           client_id: clientId,
-          callback: async (response: any) => {
+          callback: async (response: { credential?: string }) => {
             if (response.credential) {
               await loginWithGoogle(response.credential);
             }
           },
         });
-        // @ts-ignore
-        window.google.accounts.id.renderButton(
+        googleObj.accounts.id.renderButton(
           document.getElementById('googleRegisterDiv'),
           { theme: 'outline', size: 'large', text: 'signup_with', shape: 'rectangular' }
         );
