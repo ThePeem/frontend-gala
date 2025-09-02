@@ -1,7 +1,7 @@
 // src/components/LoginForm.tsx
 "use client"; // Importante: Marca este componente como Client Component en Next.js App Router
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../utils/AuthContext'; // Importa el hook useAuth
 import Link from 'next/link'; // Para un enlace a la página de registro
 
@@ -12,7 +12,42 @@ const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null); // Estado para mensajes de error
   const [loading, setLoading] = useState(false); // Estado para indicar que la petición está en curso
 
-  const { login } = useAuth(); // Obtiene la función de login del contexto de autenticación
+  const { login, loginWithGoogle } = useAuth(); // Obtiene la función de login del contexto de autenticación
+
+  // Inicializa Google Identity Services y renderiza el botón
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      // @ts-ignore
+      if (window.google) {
+        // @ts-ignore
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response: any) => {
+            if (response.credential) {
+              await loginWithGoogle(response.credential);
+            }
+          },
+        });
+        // @ts-ignore
+        window.google.accounts.id.renderButton(
+          document.getElementById('googleSignInDiv'),
+          { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular' }
+        );
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [loginWithGoogle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // Previene el comportamiento por defecto del formulario
@@ -96,6 +131,7 @@ const LoginForm: React.FC = () => {
       <p style={{ textAlign: 'center', marginTop: '20px' }}>
         ¿No tienes cuenta? <Link href="/register" style={{ color: '#007bff', textDecoration: 'none' }}>Regístrate aquí</Link>
       </p>
+      <div id="googleSignInDiv" style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }} />
     </div>
   );
 };

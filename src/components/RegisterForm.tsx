@@ -1,7 +1,7 @@
 // src/components/RegisterForm.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../utils/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -16,7 +16,42 @@ const RegisterForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
+  
+  // Inicializa Google Identity Services para registro rápido
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      // @ts-ignore
+      if (window.google) {
+        // @ts-ignore
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response: any) => {
+            if (response.credential) {
+              await loginWithGoogle(response.credential);
+            }
+          },
+        });
+        // @ts-ignore
+        window.google.accounts.id.renderButton(
+          document.getElementById('googleRegisterDiv'),
+          { theme: 'outline', size: 'large', text: 'signup_with', shape: 'rectangular' }
+        );
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [loginWithGoogle]);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,6 +150,8 @@ const RegisterForm: React.FC = () => {
           {loading ? 'Registrando...' : 'Registrarse'}
         </button>
       </form>
+      {/* Botón Google */}
+      <div id="googleRegisterDiv" style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }} />
     </div>
   );
 };

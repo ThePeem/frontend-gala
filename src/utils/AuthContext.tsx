@@ -41,6 +41,7 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: ApiError }>;
   register: (userData: UserData) => Promise<{ success: boolean; error?: ApiError }>;
+  loginWithGoogle: (idToken: string) => Promise<{ success: boolean; error?: ApiError }>;
   logout: () => void;
   axiosInstance: AxiosInstance;
   API_BASE_URL: string;
@@ -134,6 +135,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [router, axiosInstance]);
 
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    try {
+      const response = await axiosInstance.post<{ token: string }>('api/auth/google/', { id_token: idToken });
+      const { token } = response.data;
+      localStorage.setItem('authToken', token);
+      setAuthToken(token);
+      setIsAuthenticated(true);
+      router.push('/dashboard');
+      return { success: true };
+    } catch (error) {
+      console.error('Google login failed:', error);
+      const axiosError = error as AxiosError<ApiError>;
+      const errorData = axiosError.response?.data || { detail: 'Error de conexión' };
+      return { success: false, error: errorData };
+    }
+  }, [router, axiosInstance]);
+
   const logout = useCallback(() => {
     localStorage.removeItem('authToken');
     setAuthToken(null);
@@ -147,6 +165,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     login,
     register,
+    loginWithGoogle,
     logout,
     axiosInstance,
     API_BASE_URL,
