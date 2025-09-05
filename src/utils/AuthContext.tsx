@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('authToken', token);
       setAuthToken(token);
       setIsAuthenticated(true);
-      router.push('/dashboard');
+      router.push('/');
       return { success: true };
     } catch (error) {
       console.error('Login failed:', error);
@@ -142,7 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('authToken', token);
       setAuthToken(token);
       setIsAuthenticated(true);
-      router.push('/dashboard');
+      router.push('/');
       return { success: true };
     } catch (error) {
       console.error('Google login failed:', error);
