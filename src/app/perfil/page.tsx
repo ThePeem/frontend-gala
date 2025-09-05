@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '../../utils/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -38,13 +39,7 @@ export default function PerfilPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchUserData();
-    }
-  }, [isAuthenticated, axiosInstance]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       setLoadingData(true);
       
@@ -62,7 +57,13 @@ export default function PerfilPage() {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUserData();
+    }
+  }, [isAuthenticated, fetchUserData]);
 
   const handleLogout = () => {
     // El logout se maneja en AuthContext
@@ -138,10 +139,13 @@ export default function PerfilPage() {
             {/* Foto de Perfil */}
             <div className="text-center">
               {usuario.foto_perfil ? (
-                <img
+                <Image
                   src={usuario.foto_perfil}
                   alt="Foto de perfil"
+                  width={128}
+                  height={128}
                   className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200"
+                  unoptimized
                 />
               ) : (
                 <div className="w-32 h-32 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center">

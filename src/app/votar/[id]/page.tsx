@@ -1,7 +1,7 @@
 // src/app/votar/[id]/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
 import { useRouter, useParams } from "next/navigation";
 import Header from "@/components/Header";
@@ -51,13 +51,7 @@ export default function VotarPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  useEffect(() => {
-    if (isAuthenticated && premioId) {
-      fetchPremio();
-    }
-  }, [isAuthenticated, premioId, axiosInstance]);
-
-  const fetchPremio = async () => {
+  const fetchPremio = useCallback(async () => {
     try {
       setLoadingPremio(true);
       const response = await axiosInstance.get(`api/premios/`);
@@ -73,7 +67,13 @@ export default function VotarPage() {
     } finally {
       setLoadingPremio(false);
     }
-  };
+  }, [axiosInstance, premioId]);
+
+  useEffect(() => {
+    if (isAuthenticated && premioId) {
+      fetchPremio();
+    }
+  }, [isAuthenticated, premioId, fetchPremio]);
 
   const handleNominadoClick = (nominadoId: string) => {
     if (premio?.ronda_actual === 1) {

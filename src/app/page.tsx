@@ -4,16 +4,6 @@ import { useEffect, useState } from 'react';
 import { getResultadosPublicos, PremioPublico } from '../lib/api';
 import Layout from '../components/Layout'; // 👈 import del Layout
 
-// Interfaz para el objeto Nominado que viene de la API
-interface Nominado {
-  id: string;
-  premio: string;
-  nombre: string;
-  descripcion: string | null;
-  imagen: string | null;
-  activo: boolean;
-}
-
 type Premio = PremioPublico;
 
 export default function HomePage() {

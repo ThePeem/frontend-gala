@@ -8,7 +8,7 @@ function joinUrl(base: string, endpoint: string) {
   return `${base}${e}`;
 }
 
-export async function apiFetch<T = any>(
+export async function apiFetch<T = unknown>(
   endpoint: string,
   options: RequestInit = {},
   authToken?: string | null

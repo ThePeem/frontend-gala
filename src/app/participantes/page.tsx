@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
@@ -50,7 +51,7 @@ export default function ParticipantesPage() {
               <div key={p.id} className="border rounded-lg p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   {p.foto_perfil ? (
-                    <img src={p.foto_perfil} alt={p.username} className="w-12 h-12 rounded-full object-cover" />
+                    <Image src={p.foto_perfil} alt={`Foto de ${p.username}`} width={48} height={48} className="w-12 h-12 rounded-full object-cover" unoptimized />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
                       {p.first_name?.[0]?.toUpperCase() || p.username[0].toUpperCase()}

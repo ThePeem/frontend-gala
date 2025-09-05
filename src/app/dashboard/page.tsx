@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../utils/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -37,13 +37,7 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchPremios();
-    }
-  }, [isAuthenticated, axiosInstance]);
-
-  const fetchPremios = async () => {
+  const fetchPremios = useCallback(async () => {
     try {
       setLoadingPremios(true);
       const response = await axiosInstance.get('api/premios/');
@@ -54,7 +48,13 @@ export default function DashboardPage() {
     } finally {
       setLoadingPremios(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPremios();
+    }
+  }, [isAuthenticated, fetchPremios]);
 
   const handleVotar = (premioId: string) => {
     router.push(`/votar/${premioId}`);
