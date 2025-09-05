@@ -1,7 +1,7 @@
 // src/app/admin/resultados/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/utils/AuthContext";
@@ -34,13 +34,7 @@ export default function AdminResultadosPage() {
   const [calculando, setCalculando] = useState(false);
   const [publicando, setPublicando] = useState(false);
 
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      fetchPremios();
-    }
-  }, [loading, isAuthenticated]);
-
-  const fetchPremios = async () => {
+  const fetchPremios = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
@@ -52,7 +46,13 @@ export default function AdminResultadosPage() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      fetchPremios();
+    }
+  }, [loading, isAuthenticated, fetchPremios]);
 
   const setEstado = async (p: Premio, estado: "abierto" | "cerrado") => {
     try {

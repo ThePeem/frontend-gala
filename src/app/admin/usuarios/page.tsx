@@ -1,13 +1,14 @@
 // src/app/admin/usuarios/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/utils/AuthContext";
 
 type Usuario = {
-  id: number;
+  id: string; // UUID
   username: string;
   email: string;
   first_name: string;
@@ -23,15 +24,9 @@ export default function AdminUsuariosPage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [saving, setSaving] = useState<number | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      fetchUsers();
-    }
-  }, [loading, isAuthenticated]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
@@ -43,7 +38,13 @@ export default function AdminUsuariosPage() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      fetchUsers();
+    }
+  }, [loading, isAuthenticated, fetchUsers]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -58,7 +59,7 @@ export default function AdminUsuariosPage() {
   const toggleField = async (user: Usuario, field: "verificado" | "is_staff") => {
     try {
       setSaving(user.id);
-      const payload: Partial<Usuario> = { [field]: !user[field] } as any;
+      const payload: Partial<Pick<Usuario, "verificado" | "is_staff">> = { [field]: !user[field] } as Partial<Pick<Usuario, "verificado" | "is_staff">>;
       await axiosInstance.patch(`api/admin/users/${user.id}/`, payload);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...payload } : u));
     } catch (e) {
@@ -112,7 +113,7 @@ export default function AdminUsuariosPage() {
                     <td className="p-2 border">
                       <div className="flex items-center gap-2">
                         {u.foto_perfil ? (
-                          <img src={u.foto_perfil} className="w-8 h-8 rounded-full object-cover" />
+                          <Image src={u.foto_perfil} alt={`Foto de ${u.username}`} width={32} height={32} className="w-8 h-8 rounded-full object-cover" unoptimized />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gray-200" />
                         )}
