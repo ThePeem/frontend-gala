@@ -59,7 +59,12 @@ export default function AdminUsuariosPage() {
   const toggleField = async (user: Usuario, field: "verificado" | "is_staff") => {
     try {
       setSaving(user.id);
-      const payload: Partial<Pick<Usuario, "verificado" | "is_staff">> = { [field]: !user[field] } as Partial<Pick<Usuario, "verificado" | "is_staff">>;
+      let payload: Partial<Pick<Usuario, "verificado" | "is_staff">>;
+      if (field === "verificado") {
+        payload = { verificado: !user.verificado };
+      } else {
+        payload = { is_staff: !user.is_staff };
+      }
       await axiosInstance.patch(`api/admin/users/${user.id}/`, payload);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...payload } : u));
     } catch (e) {
