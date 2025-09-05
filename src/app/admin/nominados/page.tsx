@@ -1,7 +1,7 @@
 // src/app/admin/nominados/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/utils/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -15,6 +15,17 @@ type Nominado = {
   descripcion: string | null;
   imagen: string | null;
   usuarios_vinculados_detalles?: UsuarioDet[];
+};
+
+type CreateNominadoPayload = {
+  premio: string;
+  nombre: string;
+  descripcion: string | null;
+  usuarios_vinculados?: string[];
+};
+
+type UpdateNominadoPayload = Partial<Pick<Nominado, "premio" | "nombre" | "descripcion">> & {
+  usuarios_vinculados?: string[];
 };
 
 export default function AdminNominadosPage() {
@@ -32,13 +43,7 @@ export default function AdminNominadosPage() {
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [usuariosCsv, setUsuariosCsv] = useState(""); // ids separados por coma
 
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      fetchAll();
-    }
-  }, [loading, isAuthenticated]);
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
@@ -47,20 +52,26 @@ export default function AdminNominadosPage() {
         axiosInstance.get<Premio[]>("api/admin/premios/"),
       ]);
       setNominados(nomRes.data);
-      setPremios(premRes.data.map(p => ({ id: p.id, nombre: (p as any).nombre })));
+      setPremios(premRes.data.map((p: Premio) => ({ id: p.id, nombre: p.nombre })));
     } catch (e) {
       console.error(e);
       setError("No se pudieron cargar nominados/premios");
     } finally {
       setFetching(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      fetchAll();
+    }
+  }, [loading, isAuthenticated, fetchAll]);
 
   const crearNominado = async () => {
     if (!nuevoPremio || !nuevoNombre) return;
     try {
       setSavingId("new");
-      const payload: any = {
+      const payload: CreateNominadoPayload = {
         premio: nuevoPremio,
         nombre: nuevoNombre,
         descripcion: nuevaDescripcion || null,
@@ -81,10 +92,10 @@ export default function AdminNominadosPage() {
     }
   };
 
-  const actualizarNominado = async (n: Nominado, updates: Partial<Nominado> & { usuarios_vinculados?: string[] }) => {
+  const actualizarNominado = async (n: Nominado, updates: UpdateNominadoPayload) => {
     try {
       setSavingId(n.id);
-      const res = await axiosInstance.patch<Nominado>(`api/admin/nominados/${n.id}/`, updates as any);
+      const res = await axiosInstance.patch<Nominado>(`api/admin/nominados/${n.id}/`, updates);
       setNominados(prev => prev.map(x => x.id === n.id ? res.data : x));
     } catch (e) {
       console.error(e);

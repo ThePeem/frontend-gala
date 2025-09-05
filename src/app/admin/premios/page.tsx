@@ -1,7 +1,7 @@
 // src/app/admin/premios/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/utils/AuthContext";
@@ -27,13 +27,7 @@ export default function AdminPremiosPage() {
   const [nuevoEstado, setNuevoEstado] = useState<"abierto" | "cerrado">("cerrado");
   const [nuevaRonda, setNuevaRonda] = useState(1);
 
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      fetchPremios();
-    }
-  }, [loading, isAuthenticated]);
-
-  const fetchPremios = async () => {
+  const fetchPremios = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
@@ -45,7 +39,13 @@ export default function AdminPremiosPage() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [axiosInstance]);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      fetchPremios();
+    }
+  }, [loading, isAuthenticated, fetchPremios]);
 
   const crearPremio = async () => {
     try {
@@ -115,7 +115,7 @@ export default function AdminPremiosPage() {
           <div className="grid md:grid-cols-4 gap-3">
             <input className="border rounded px-3 py-2" placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} />
             <input className="border rounded px-3 py-2 md:col-span-2" placeholder="Descripción (opcional)" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} />
-            <select className="border rounded px-3 py-2" value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value as any)}>
+            <select className="border rounded px-3 py-2" value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value as "abierto" | "cerrado")}>
               <option value="cerrado">Cerrado</option>
               <option value="abierto">Abierto</option>
             </select>
@@ -153,7 +153,7 @@ export default function AdminPremiosPage() {
                       <input className="border rounded px-2 py-1 w-full" value={p.descripcion || ""} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, descripcion: e.target.value } : pr))} />
                     </td>
                     <td className="p-2 border">
-                      <select className="border rounded px-2 py-1" value={p.estado} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as any } : pr))}>
+                      <select className="border rounded px-2 py-1" value={p.estado} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))}>
                         <option value="cerrado">Cerrado</option>
                         <option value="abierto">Abierto</option>
                       </select>
