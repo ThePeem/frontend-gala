@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useAuth } from "@/utils/AuthContext";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 type GoogleCredentialResponse = { credential?: string };
 type GoogleAccountsId = {
@@ -80,58 +83,41 @@ export default function LoginPage() {
         onLoad={() => setGisReady(true)}
       />
       <div className="relative w-full max-w-md">
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl backdrop-blur">
-          <div className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-500/10 via-amber-400/0 to-amber-500/10"></div>
-
+        <Card className="p-6">
           <header className="relative">
             <h2 className="text-center text-2xl font-semibold tracking-tight text-zinc-50">Iniciar Sesión</h2>
             <p className="mt-1 text-center text-sm text-zinc-400">Entra para votar en los premios</p>
           </header>
 
           <form className="relative mt-6 space-y-4" onSubmit={onSubmit}>
-            <div>
-              <label htmlFor="username" className="mb-1 block text-sm font-medium text-zinc-200">
-                Usuario
-              </label>
-              <input
-                type="text"
-                id="username"
-                className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                placeholder="Introduzca su nombre de usuario"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                disabled={submitting}
-              />
-            </div>
+            <Input
+              id="username"
+              label="Usuario"
+              placeholder="Introduzca su nombre de usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              disabled={submitting}
+            />
 
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-zinc-200">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                id="password"
-                className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                disabled={submitting}
-              />
-            </div>
+            <Input
+              id="password"
+              label="Contraseña"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              disabled={submitting}
+            />
 
             {error && (
               <div className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{error}</div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting || !username || !password}
-              className="group mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg transition duration-300 ease-out hover:from-amber-400 hover:to-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Entrando..." : "Entrar"}
-            </button>
+            <Button type="submit" disabled={submitting || !username || !password} loading={submitting} className="w-full">
+              Entrar
+            </Button>
           </form>
 
           <div className="relative mt-4">
@@ -150,7 +136,7 @@ export default function LoginPage() {
               Regístrate aquí
             </a>
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );

@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useAuth } from "@/utils/AuthContext";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 type GoogleCredentialResponse = { credential?: string };
 type GoogleAccountsId = {
@@ -116,9 +119,7 @@ export default function RegisterPage() {
       />
 
       <div className="relative w-full max-w-xl">
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl backdrop-blur">
-          <div className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-500/10 via-amber-400/0 to-amber-500/10"></div>
-
+        <Card className="p-6">
           <header className="relative">
             <h2 className="text-center text-2xl font-semibold tracking-tight text-zinc-50">Registro de Usuario</h2>
             <p className="mt-1 text-center text-sm text-zinc-400">Crea tu cuenta para votar en los premios</p>
@@ -126,43 +127,23 @@ export default function RegisterPage() {
 
           <form className="relative mt-6 space-y-4" onSubmit={onSubmit}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="first-name" className="mb-1 block text-sm font-medium text-zinc-200">Nombre</label>
-                <input id="first-name" type="text" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Nombre" value={firstName} onChange={(e)=>setFirstName(e.target.value)} disabled={submitting} />
-              </div>
-              <div>
-                <label htmlFor="last-name" className="mb-1 block text-sm font-medium text-zinc-200">Apellido</label>
-                <input id="last-name" type="text" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Apellido" value={lastName} onChange={(e)=>setLastName(e.target.value)} disabled={submitting} />
-              </div>
+              <Input id="first-name" label="Nombre" placeholder="Nombre" value={firstName} onChange={(e)=>setFirstName(e.target.value)} disabled={submitting} />
+              <Input id="last-name" label="Apellido" placeholder="Apellido" value={lastName} onChange={(e)=>setLastName(e.target.value)} disabled={submitting} />
             </div>
 
-            <div>
-              <label htmlFor="username" className="mb-1 block text-sm font-medium text-zinc-200">Usuario</label>
-              <input id="username" type="text" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Nombre de usuario" value={username} onChange={(e)=>setUsername(e.target.value)} disabled={submitting} />
-            </div>
+            <Input id="username" label="Usuario" placeholder="Nombre de usuario" value={username} onChange={(e)=>setUsername(e.target.value)} disabled={submitting} />
 
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-zinc-200">Email</label>
-              <input id="email" type="email" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="Correo electrónico" value={email} onChange={(e)=>setEmail(e.target.value)} disabled={submitting} />
-            </div>
+            <Input id="email" label="Email" type="email" placeholder="Correo electrónico" value={email} onChange={(e)=>setEmail(e.target.value)} disabled={submitting} />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="password" className="mb-1 block text-sm font-medium text-zinc-200">Contraseña</label>
-                <input id="password" type="password" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="••••••••" value={password} onChange={(e)=>setPassword(e.target.value)} disabled={submitting} />
-              </div>
-              <div>
-                <label htmlFor="password2" className="mb-1 block text-sm font-medium text-zinc-200">Confirmar Contraseña</label>
-                <input id="password2" type="password" className="block w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/30" placeholder="••••••••" value={password2} onChange={(e)=>setPassword2(e.target.value)} disabled={submitting} />
-              </div>
+              <Input id="password" label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(e)=>setPassword(e.target.value)} disabled={submitting} />
+              <Input id="password2" label="Confirmar Contraseña" type="password" placeholder="••••••••" value={password2} onChange={(e)=>setPassword2(e.target.value)} disabled={submitting} />
             </div>
 
             {error && <div className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2">{error}</div>}
             {success && <div className="text-sm text-emerald-400 bg-emerald-950/30 border border-emerald-900 rounded-lg px-3 py-2">{success}</div>}
 
-            <button type="submit" disabled={submitting} className="group mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg transition duration-300 ease-out hover:from-amber-400 hover:to-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 disabled:opacity-60">
-              {submitting ? "Registrando..." : "Registrarse"}
-            </button>
+            <Button type="submit" disabled={submitting} loading={submitting} className="w-full">Registrarse</Button>
 
             <div className="my-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-zinc-800"></div>
@@ -170,18 +151,14 @@ export default function RegisterPage() {
               <div className="h-px flex-1 bg-zinc-800"></div>
             </div>
 
-            <div className="flex justify-center">
-              <div ref={googleBtnRef} />
-            </div>
+            <div className="flex justify-center"><div ref={googleBtnRef} /></div>
 
             <p className="relative mt-6 text-center text-sm text-zinc-400">
               ¿Ya tienes cuenta?
-              <a href="/login" className="ml-1 font-medium text-amber-400 underline-offset-4 hover:text-amber-300 hover:underline">
-                Inicia sesión aquí
-              </a>
+              <a href="/login" className="ml-1 font-medium text-amber-400 underline-offset-4 hover:text-amber-300 hover:underline">Inicia sesión aquí</a>
             </p>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );

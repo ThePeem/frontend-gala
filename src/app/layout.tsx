@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google"; // O las fuentes que estés usando
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/Toast";
 
 // IMPORTAR AuthProvider
 import { AuthProvider } from '../utils/AuthContext'; // Asegúrate que esta ruta sea correcta
@@ -31,7 +32,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {/* ENVOLVER LOS CHILDREN CON AuthProvider */}
         <AuthProvider>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
