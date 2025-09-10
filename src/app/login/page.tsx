@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { useAuth } from "@/utils/AuthContext";
 
+declare global {
+  // eslint-disable-next-line no-var
+  var google: any;
+}
+
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gisReady, setGisReady] = useState(false);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const googleBtnRef = useRef<HTMLDivElement | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,8 +31,77 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = useCallback(() => {
+    if (!googleClientId) {
+      setError("Falta configurar NEXT_PUBLIC_GOOGLE_CLIENT_ID");
+      return;
+    }
+    if (!(window as any).google) {
+      setError("Google Identity no está listo aún. Inténtalo de nuevo en unos segundos.");
+      return;
+    }
+    try {
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: { credential?: string }) => {
+          if (response.credential) {
+            const res = await loginWithGoogle(response.credential);
+            if (!res.success) {
+              setError(res.error?.detail || "Error al iniciar sesión con Google");
+            }
+          } else {
+            setError("No se recibió credencial de Google");
+          }
+        },
+        ux_mode: "popup",
+      });
+      // Mostrar One Tap o flujo de popup
+      window.google.accounts.id.prompt();
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo iniciar el flujo de Google");
+    }
+  }, [googleClientId, loginWithGoogle]);
+
+  // Renderizar botón oficial de Google cuando el script está listo
+  useEffect(() => {
+    if (!gisReady || !googleClientId) return;
+    if (!(window as any).google) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: { credential?: string }) => {
+          if (response.credential) {
+            const res = await loginWithGoogle(response.credential);
+            if (!res.success) {
+              setError(res.error?.detail || "Error al iniciar sesión con Google");
+            }
+          }
+        },
+        ux_mode: "popup",
+      });
+      if (googleBtnRef.current) {
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: "filled_black",
+          size: "large",
+          shape: "rectangular",
+          text: "signin_with",
+          logo_alignment: "left",
+        });
+      }
+    } catch (e) {
+      console.error("Error inicializando Google Identity", e);
+    }
+  }, [gisReady, googleClientId, loginWithGoogle]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-white p-6">
+      {/* Carga del script de Google Identity Services */}
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={() => setGisReady(true)}
+      />
       <div className="relative w-full max-w-md">
         <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl backdrop-blur">
           <div className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-500/10 via-amber-400/0 to-amber-500/10"></div>
@@ -87,20 +165,7 @@ export default function LoginPage() {
             </div>
 
             <div className="flex justify-center">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/50 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
-                title="Próximamente: Google Sign-In"
-                disabled
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 48 48">
-                  <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.602 31.742 29.268 35 24 35c-6.075 0-11-4.925-11-11s4.925-11 11-11c2.803 0 5.367 1.054 7.327 2.773l5.657-5.657C33.441 6.053 28.973 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.651-.389-3.917z"/>
-                  <path fill="#FF3D00" d="M6.306 14.691l6.571 4.817C14.74 16.41 19.03 13 24 13c2.803 0 5.367 1.054 7.327 2.773l5.657-5.657C33.441 6.053 28.973 4 24 4c-7.9 0-14.646 4.564-17.694 10.691z"/>
-                  <path fill="#4CAF50" d="M24 44c5.17 0 9.86-1.977 13.409-5.192l-6.191-5.238C29.268 35 24.935 36.742 20 36.742c-5.22 0-9.64-3.018-11.642-7.389l-6.616 5.1C5.689 39.35 14.229 44 24 44z"/>
-                  <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-1.616 3.742-5.95 7-11.303 7-6.075 0-11-4.925-11-11s4.925-11 11-11c2.803 0 5.367 1.054 7.327 2.773l5.657-5.657C33.441 6.053 28.973 4 24 4c-7.9 0-14.646 4.564-17.694 10.691z"/>
-                </svg>
-                Google
-              </button>
+              <div ref={googleBtnRef} />
             </div>
           </div>
 
