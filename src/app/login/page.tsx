@@ -1,13 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useAuth } from "@/utils/AuthContext";
 
-declare global {
-  // eslint-disable-next-line no-var
-  var google: any;
-}
+type GoogleCredentialResponse = { credential?: string };
+type GoogleAccountsId = {
+  initialize: (config: {
+    client_id: string;
+    callback: (response: GoogleCredentialResponse) => void;
+    ux_mode?: "popup" | "redirect";
+  }) => void;
+  renderButton: (el: HTMLElement, options: Record<string, unknown>) => void;
+  prompt: () => void;
+};
+type GoogleGlobal = { accounts: { id: GoogleAccountsId } };
 
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
@@ -31,46 +38,16 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = useCallback(() => {
-    if (!googleClientId) {
-      setError("Falta configurar NEXT_PUBLIC_GOOGLE_CLIENT_ID");
-      return;
-    }
-    if (!(window as any).google) {
-      setError("Google Identity no está listo aún. Inténtalo de nuevo en unos segundos.");
-      return;
-    }
-    try {
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async (response: { credential?: string }) => {
-          if (response.credential) {
-            const res = await loginWithGoogle(response.credential);
-            if (!res.success) {
-              setError(res.error?.detail || "Error al iniciar sesión con Google");
-            }
-          } else {
-            setError("No se recibió credencial de Google");
-          }
-        },
-        ux_mode: "popup",
-      });
-      // Mostrar One Tap o flujo de popup
-      window.google.accounts.id.prompt();
-    } catch (e) {
-      console.error(e);
-      setError("No se pudo iniciar el flujo de Google");
-    }
-  }, [googleClientId, loginWithGoogle]);
-
   // Renderizar botón oficial de Google cuando el script está listo
   useEffect(() => {
     if (!gisReady || !googleClientId) return;
-    if (!(window as any).google) return;
+    const gg: GoogleGlobal | undefined = (window as unknown as { google?: GoogleGlobal })
+      .google;
+    if (!gg) return;
     try {
-      window.google.accounts.id.initialize({
+      gg.accounts.id.initialize({
         client_id: googleClientId,
-        callback: async (response: { credential?: string }) => {
+        callback: async (response: GoogleCredentialResponse) => {
           if (response.credential) {
             const res = await loginWithGoogle(response.credential);
             if (!res.success) {
@@ -81,7 +58,7 @@ export default function LoginPage() {
         ux_mode: "popup",
       });
       if (googleBtnRef.current) {
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
+        gg.accounts.id.renderButton(googleBtnRef.current, {
           theme: "filled_black",
           size: "large",
           shape: "rectangular",
@@ -164,9 +141,7 @@ export default function LoginPage() {
               <div className="h-px flex-1 bg-zinc-800"></div>
             </div>
 
-            <div className="flex justify-center">
-              <div ref={googleBtnRef} />
-            </div>
+            <div className="flex justify-center"><div ref={googleBtnRef} /></div>
           </div>
 
           <p className="relative mt-6 text-center text-sm text-zinc-400">
