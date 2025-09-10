@@ -1,8 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useAuth } from "@/utils/AuthContext";
+
+type GoogleCredentialResponse = { credential?: string };
+type GoogleAccountsId = {
+  initialize: (config: {
+    client_id: string;
+    callback: (response: GoogleCredentialResponse) => void;
+    ux_mode?: "popup" | "redirect";
+  }) => void;
+  renderButton: (el: HTMLElement, options: Record<string, unknown>) => void;
+  prompt: () => void;
+};
+type GoogleGlobal = { accounts: { id: GoogleAccountsId } };
+type RegisterPayload = {
+  first_name: string;
+  last_name: string;
+  username: string;
+  email: string;
+  password: string;
+  password2: string;
+};
 
 export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth();
@@ -34,14 +54,15 @@ export default function RegisterPage() {
       return;
     }
     setSubmitting(true);
-    const res = await register({
+    const payload: RegisterPayload = {
       first_name: firstName,
       last_name: lastName,
       username,
       email,
       password,
       password2,
-    } as any);
+    };
+    const res = await register(payload);
     if (!res.success) {
       const detail = (res.error?.detail as string) || "No se pudo completar el registro";
       setError(detail);
@@ -55,11 +76,13 @@ export default function RegisterPage() {
   // Inicializar y renderizar botón de Google (opcional)
   useEffect(() => {
     if (!gisReady || !googleClientId) return;
-    if (!(window as any).google) return;
+    const gg: GoogleGlobal | undefined = (window as unknown as { google?: GoogleGlobal })
+      .google;
+    if (!gg) return;
     try {
-      window.google.accounts.id.initialize({
+      gg.accounts.id.initialize({
         client_id: googleClientId,
-        callback: async (response: { credential?: string }) => {
+        callback: async (response: GoogleCredentialResponse) => {
           if (response.credential) {
             const r = await loginWithGoogle(response.credential);
             if (!r.success) {
@@ -70,7 +93,7 @@ export default function RegisterPage() {
         ux_mode: "popup",
       });
       if (googleBtnRef.current) {
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
+        gg.accounts.id.renderButton(googleBtnRef.current, {
           theme: "filled_black",
           size: "large",
           shape: "rectangular",
