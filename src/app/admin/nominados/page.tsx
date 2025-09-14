@@ -55,22 +55,17 @@ export default function AdminNominadosPage() {
   const [newIndirectText, setNewIndirectText] = useState("");
   const [newIndirectLinkedUser, setNewIndirectLinkedUser] = useState<string>("");
 
-  // Formulario creación
-  const [nuevoPremio, setNuevoPremio] = useState<string>("");
-  const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevaDescripcion, setNuevaDescripcion] = useState("");
-  const [usuariosCsv, setUsuariosCsv] = useState(""); // ids separados por coma
-
+  // Formulario creación (eliminado de la UI en esta iteración) -> estados no usados retirados
   const fetchAll = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
       const [nomRes, premRes] = await Promise.all([
-        axiosInstance.get<Nominado[]>("api/admin/nominados/"),
-        axiosInstance.get<Premio[]>("api/admin/premios/"),
+        axiosInstance.get<Nominado[]>("api/admin/nominados/") as unknown as Promise<{ data: Nominado[] }>,
+        axiosInstance.get<Premio[]>("api/admin/premios/") as unknown as Promise<{ data: Premio[] }>,
       ]);
       setNominados(nomRes.data);
-      setPremios(premRes.data.map((p: Premio) => ({ id: (p as any).id, nombre: (p as any).nombre })));
+      setPremios(premRes.data.map((p) => ({ id: p.id, nombre: p.nombre })));
     } catch (e) {
       console.error(e);
       setError("No se pudieron cargar nominados/premios");
@@ -85,45 +80,7 @@ export default function AdminNominadosPage() {
     }
   }, [loading, isAuthenticated, fetchAll]);
 
-  const crearNominado = async () => {
-    if (!nuevoPremio || !nuevoNombre) return;
-    try {
-      setSavingId("new");
-      const payload: CreateNominadoPayload = {
-        premio: nuevoPremio,
-        nombre: nuevoNombre,
-        descripcion: nuevaDescripcion || null,
-      };
-      const ids = usuariosCsv.split(',').map(s => s.trim()).filter(Boolean);
-      if (ids.length) payload.usuarios_vinculados = ids;
-      const res = await axiosInstance.post<Nominado>("api/admin/nominados/", payload);
-      setNominados(prev => [res.data, ...prev]);
-      setNuevoPremio("");
-      setNuevoNombre("");
-      setNuevaDescripcion("");
-      setUsuariosCsv("");
-      show("success", "Nominado creado");
-    } catch (e) {
-      console.error(e);
-      show("error", "No se pudo crear el nominado");
-    } finally {
-      setSavingId(null);
-    }
-  };
-
-  const actualizarNominado = async (n: Nominado, updates: UpdateNominadoPayload) => {
-    try {
-      setSavingId(n.id);
-      const res = await axiosInstance.patch<Nominado>(`api/admin/nominados/${n.id}/`, updates);
-      setNominados(prev => prev.map(x => x.id === n.id ? res.data : x));
-      show("success", "Nominado actualizado");
-    } catch (e) {
-      console.error(e);
-      show("error", "No se pudo actualizar el nominado");
-    } finally {
-      setSavingId(null);
-    }
-  };
+  // Crear/actualizar nominado se gestiona en flujos del modal (directos/indirectos)
 
   const eliminarNominado = async (id: string) => {
     try {
@@ -407,7 +364,17 @@ export default function AdminNominadosPage() {
                           <td className="px-4 py-2 border-b border-zinc-800 w-60">
                             <Select
                               value={linked}
-                              onChange={(e) => setNominados(prev => prev.map(x => x.id === n.id ? { ...x, usuarios_vinculados_detalles: e.target.value ? [{ id: e.target.value, username: participants.find(p => p.id === e.target.value)?.username || '' }] as any : [] } : x))}
+                              onChange={(e) => {
+                                const selectedId = e.target.value as string;
+                                setNominados(prev => prev.map(x => {
+                                  if (x.id !== n.id) return x;
+                                  const selectedUser = participants.find(p => p.id === selectedId);
+                                  const detalles: UsuarioDet[] = selectedUser ? [
+                                    { id: selectedUser.id, username: selectedUser.username }
+                                  ] : [];
+                                  return { ...x, usuarios_vinculados_detalles: detalles };
+                                }));
+                              }}
                               options={[{label:'Sin usuario', value:''}, ...participants.map(u => ({label: (u.first_name || u.last_name) ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : `@${u.username}`, value: u.id}))]}
                             />
                           </td>
