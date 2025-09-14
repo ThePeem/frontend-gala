@@ -156,7 +156,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('authToken');
     setAuthToken(null);
     setIsAuthenticated(false);
-    router.push('/login');
+    router.push('/');
   }, [router]);
 
   const contextValue: AuthContextType = {

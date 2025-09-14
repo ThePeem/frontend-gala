@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import Script from 'next/script';
 import { useAuth } from '../../utils/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -21,6 +22,8 @@ interface Usuario {
   first_name: string;
   last_name: string;
   foto_perfil?: string;
+  foto_url?: string | null;
+  descripcion?: string | null;
   verificado: boolean;
 }
 
@@ -32,6 +35,8 @@ export default function PerfilPage() {
   const [votos, setVotos] = useState<Voto[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [cldReady, setCldReady] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -70,6 +75,77 @@ export default function PerfilPage() {
     router.push('/login');
   };
 
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
+
+  type CloudinaryGlobal = {
+    createUploadWidget: (
+      options: {
+        cloudName: string;
+        uploadPreset: string;
+        sources?: string[];
+        multiple?: boolean;
+        folder?: string;
+        clientAllowedFormats?: string[];
+      },
+      callback: (error: unknown, result: { event: string; info?: { secure_url?: string } }) => void
+    ) => { open: () => void };
+  };
+
+  const openUpload = () => {
+    if (!usuario) return;
+    if (!cldReady || !cloudName || !uploadPreset) {
+      alert('Cloudinary no está configurado. Añade NEXT_PUBLIC_CLOUDINARY_* en .env.local');
+      return;
+    }
+    const cld = (window as unknown as { cloudinary?: CloudinaryGlobal }).cloudinary;
+    if (!cld) return;
+    const widget = cld.createUploadWidget(
+      {
+        cloudName,
+        uploadPreset,
+        sources: ['local', 'url', 'camera'],
+        multiple: false,
+        folder: 'perfiles',
+        clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
+      },
+      async (_error, result) => {
+        if (result?.event === 'success' && result.info?.secure_url) {
+          const url = result.info.secure_url;
+          try {
+            setSaving(true);
+            await axiosInstance.patch('api/mi-perfil/', { foto_url: url });
+            setUsuario((prev) => (prev ? { ...prev, foto_url: url } : prev));
+          } catch (e) {
+            console.error(e);
+            alert('No se pudo guardar la foto');
+          } finally {
+            setSaving(false);
+          }
+        }
+      }
+    );
+    widget.open();
+  };
+
+  const saveProfile = async () => {
+    if (!usuario) return;
+    try {
+      setSaving(true);
+      await axiosInstance.patch('api/mi-perfil/', {
+        first_name: usuario.first_name,
+        last_name: usuario.last_name,
+        descripcion: usuario.descripcion || '',
+      });
+      alert('Perfil actualizado');
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo actualizar el perfil');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading || loadingData) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -106,6 +182,7 @@ export default function PerfilPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="afterInteractive" onLoad={() => setCldReady(true)} />
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -124,6 +201,20 @@ export default function PerfilPage() {
               >
                 Cerrar Sesión
               </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea
+                  className="w-full border rounded px-3 py-2 min-h-24"
+                  placeholder="Cuéntanos algo sobre ti..."
+                  value={usuario.descripcion || ''}
+                  onChange={(e) => setUsuario((prev) => (prev ? { ...prev, descripcion: e.target.value } : prev))}
+                />
+              </div>
+              <div className="pt-2">
+                <button onClick={saveProfile} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-60">
+                  {saving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -138,9 +229,9 @@ export default function PerfilPage() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Foto de Perfil */}
             <div className="text-center">
-              {usuario.foto_perfil ? (
+              {usuario.foto_url || usuario.foto_perfil ? (
                 <Image
-                  src={usuario.foto_perfil}
+                  src={usuario.foto_url || usuario.foto_perfil!}
                   alt="Foto de perfil"
                   width={128}
                   height={128}
@@ -154,8 +245,8 @@ export default function PerfilPage() {
                   </span>
                 </div>
               )}
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                Cambiar Foto
+              <button onClick={openUpload} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-60">
+                {saving ? 'Subiendo...' : 'Cambiar Foto'}
               </button>
             </div>
 
@@ -166,9 +257,23 @@ export default function PerfilPage() {
                 <p className="text-gray-900 font-medium">{usuario.username}</p>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <p className="text-gray-900">{usuario.first_name} {usuario.last_name}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                  <input
+                    className="w-full border rounded px-3 py-2"
+                    value={usuario.first_name}
+                    onChange={(e) => setUsuario((prev) => (prev ? { ...prev, first_name: e.target.value } : prev))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
+                  <input
+                    className="w-full border rounded px-3 py-2"
+                    value={usuario.last_name}
+                    onChange={(e) => setUsuario((prev) => (prev ? { ...prev, last_name: e.target.value } : prev))}
+                  />
+                </div>
               </div>
               
               <div>

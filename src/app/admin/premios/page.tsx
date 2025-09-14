@@ -1,10 +1,19 @@
 // src/app/admin/premios/page.tsx
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/utils/AuthContext";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import Button from "@/components/ui/Button";
+import Table from "@/components/ui/Table";
+import Image from "next/image";
+import Modal from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 
 type Premio = {
   id: string;
@@ -12,6 +21,29 @@ type Premio = {
   descripcion: string | null;
   estado: "abierto" | "cerrado";
   ronda_actual: number;
+  slug?: string | null;
+  image_url?: string | null;
+  tipo?: "directo" | "indirecto";
+};
+
+type CloudinaryResult = {
+  event: string;
+  info?: { secure_url?: string };
+};
+type CloudinaryWidget = { open: () => void };
+type CloudinaryGlobal = {
+  createUploadWidget: (
+    options: {
+      cloudName: string;
+      uploadPreset: string;
+      sources?: string[];
+      multiple?: boolean;
+      folder?: string;
+      maxFileSize?: number;
+      clientAllowedFormats?: string[];
+    },
+    callback: (error: unknown, result: CloudinaryResult) => void
+  ) => CloudinaryWidget;
 };
 
 export default function AdminPremiosPage() {
@@ -20,12 +52,16 @@ export default function AdminPremiosPage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const { show } = useToast();
 
   // Formulario creación
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [nuevoEstado, setNuevoEstado] = useState<"abierto" | "cerrado">("cerrado");
   const [nuevaRonda, setNuevaRonda] = useState(1);
+  const [q, setQ] = useState("");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [cldReady, setCldReady] = useState(false);
 
   const fetchPremios = useCallback(async () => {
     try {
@@ -62,9 +98,10 @@ export default function AdminPremiosPage() {
       setNuevaDescripcion("");
       setNuevoEstado("cerrado");
       setNuevaRonda(1);
+      show("success", "Premio creado");
     } catch (e) {
       console.error(e);
-      alert("No se pudo crear el premio");
+      show("error", "No se pudo crear el premio");
     } finally {
       setSavingId(null);
     }
@@ -75,26 +112,69 @@ export default function AdminPremiosPage() {
       setSavingId(id);
       const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, cambios);
       setPremios((prev) => prev.map((pr) => (pr.id === id ? res.data : pr)));
+      show("success", "Premio actualizado");
     } catch (e) {
       console.error(e);
-      alert("No se pudo actualizar el premio");
+      show("error", "No se pudo actualizar el premio");
     } finally {
       setSavingId(null);
     }
   };
 
   const eliminarPremio = async (id: string) => {
-    if (!confirm("¿Eliminar este premio?")) return;
     try {
       setSavingId(id);
       await axiosInstance.delete(`api/admin/premios/${id}/`);
       setPremios((prev) => prev.filter((p) => p.id !== id));
+      show("success", "Premio eliminado");
     } catch (e) {
       console.error(e);
-      alert("No se pudo eliminar el premio");
+      show("error", "No se pudo eliminar el premio");
     } finally {
       setSavingId(null);
     }
+  };
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return premios;
+    return premios.filter((p) =>
+      p.nombre.toLowerCase().includes(term) ||
+      (p.descripcion || "").toLowerCase().includes(term) ||
+      p.estado.toLowerCase().includes(term)
+    );
+  }, [premios, q]);
+
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "";
+
+  const openUpload = (premioId: string) => {
+    if (!cldReady || !cloudName || !uploadPreset) {
+      show("error", "Cloudinary no está configurado. Revisa las variables NEXT_PUBLIC_CLOUDINARY_*.");
+      return;
+    }
+    const cld = (window as unknown as { cloudinary?: CloudinaryGlobal }).cloudinary;
+    if (!cld) return;
+    const widget = cld.createUploadWidget(
+      {
+        cloudName,
+        uploadPreset,
+        sources: ["local", "url", "camera"],
+        multiple: false,
+        folder: "premios",
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
+      },
+      async (_error, result) => {
+        if (result?.event === "success" && result.info?.secure_url) {
+          const url = result.info.secure_url;
+          // Actualizamos el estado local para previsualizar inmediatamente
+          setPremios((prev) => prev.map((p) => (p.id === premioId ? { ...p, image_url: url } : p)));
+          // Guardamos en backend
+          await actualizarPremio(premioId, { image_url: url });
+        }
+      }
+    );
+    widget.open();
   };
 
   if (loading) return <p className="p-6">Cargando...</p>;
@@ -102,79 +182,150 @@ export default function AdminPremiosPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <Script
+        src="https://widget.cloudinary.com/v2.0/global/all.js"
+        strategy="afterInteractive"
+        onLoad={() => setCldReady(true)}
+      />
       <Header />
       <main className="flex-grow p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Administración de Premios</h1>
-          <button onClick={fetchPremios} className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">Refrescar</button>
+          <h1 className="text-2xl font-bold text-zinc-100">Administración de Premios</h1>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => window.location.assign('/admin')}>Admin Hub</Button>
+            <Button variant="secondary" onClick={fetchPremios}>Refrescar</Button>
+          </div>
         </div>
 
         {/* Crear nuevo premio */}
-        <div className="border rounded p-4 mb-6">
-          <h2 className="font-semibold mb-3">Crear nuevo premio</h2>
-          <div className="grid md:grid-cols-4 gap-3">
-            <input className="border rounded px-3 py-2" placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} />
-            <input className="border rounded px-3 py-2 md:col-span-2" placeholder="Descripción (opcional)" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} />
-            <select className="border rounded px-3 py-2" value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value as "abierto" | "cerrado")}>
-              <option value="cerrado">Cerrado</option>
-              <option value="abierto">Abierto</option>
-            </select>
-            <input type="number" min={1} max={2} className="border rounded px-3 py-2" placeholder="Ronda" value={nuevaRonda} onChange={(e) => setNuevaRonda(parseInt(e.target.value || "1", 10))} />
-            <div>
-              <button disabled={!nuevoNombre || savingId === "new"} onClick={crearPremio} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">Crear</button>
+        <Card className="mb-6">
+          <div className="relative p-4">
+            <h2 className="font-semibold text-zinc-100 mb-3">Crear nuevo premio</h2>
+            <div className="grid md:grid-cols-4 gap-3">
+              <Input placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} />
+              <Input placeholder="Descripción (opcional)" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} className="md:col-span-2" />
+              <Select value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value as "abierto" | "cerrado")} options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]} />
+              <Input type="number" min={1} max={2} placeholder="Ronda" value={nuevaRonda} onChange={(e) => setNuevaRonda(parseInt(e.target.value || "1", 10))} />
+              <div>
+                <Button onClick={crearPremio} disabled={!nuevoNombre || savingId === "new"}>Crear</Button>
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {fetching && <p>Cargando premios...</p>}
-        {error && <p className="text-red-600">{error}</p>}
+        <Card>
+          <div className="relative p-4">
+            <div className="mb-4">
+              <div className="w-full md:w-1/2">
+                <Input id="search-premios" placeholder="Buscar por nombre, descripción o estado" value={q} onChange={(e) => setQ(e.target.value)} />
+              </div>
+            </div>
 
-        {!fetching && !error && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-2 border">ID</th>
-                  <th className="p-2 border">Nombre</th>
-                  <th className="p-2 border">Descripción</th>
-                  <th className="p-2 border">Estado</th>
-                  <th className="p-2 border">Ronda</th>
-                  <th className="p-2 border">Acciones</th>
+            {error && <div className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2 mb-3">{error}</div>}
+
+
+            <Table
+              headers={["Foto", "Slug", "Nombre", "Tipo", "Descripción", "Estado", "Ronda", "Imagen (URL)", "Acciones"]}
+              loading={fetching}
+              emptyMessage={!fetching && filtered.length === 0 ? "Sin premios" : undefined}
+            >
+              {filtered.map((p) => (
+                <tr key={p.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
+                  {/* Foto */}
+                  <td className="px-4 py-2 border-b border-zinc-800">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
+                      <Image
+                        src={p.image_url || (p.slug ? `/premios/${p.slug}.jpg` : `/premios/${p.id}.jpg`)}
+                        alt={`Imagen de ${p.nombre}`}
+                        width={64}
+                        height={64}
+                        className="w-16 h-16 object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  </td>
+                  {/* Slug */}
+                  <td className="px-4 py-2 border-b border-zinc-800 w-48">
+                    <Input
+                      placeholder="slug-estable"
+                      value={p.slug || ""}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, slug: e.target.value } : pr))}
+                    />
+                  </td>
+                  {/* Nombre */}
+                  <td className="px-4 py-2 border-b border-zinc-800 max-w-[220px]">
+                    <Input
+                      title={p.nombre}
+                      className="truncate max-w-[220px]"
+                      value={p.nombre}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, nombre: e.target.value } : pr))}
+                    />
+                  </td>
+                  {/* Tipo */}
+                  <td className="px-4 py-2 border-b border-zinc-800 w-40">
+                    <Select
+                      value={p.tipo || "directo"}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, tipo: e.target.value as "directo" | "indirecto" } : pr))}
+                      options={[{label:"Directo", value:"directo"}, {label:"Indirecto", value:"indirecto"}]}
+                    />
+                  </td>
+                  {/* Descripción */}
+                  <td className="px-4 py-2 border-b border-zinc-800">
+                    <Input value={p.descripcion || ""} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, descripcion: e.target.value } : pr))} />
+                  </td>
+                  {/* Estado */}
+                  <td className="px-4 py-2 border-b border-zinc-800">
+                    <Select value={p.estado} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))} options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]} />
+                  </td>
+                  {/* Ronda */}
+                  <td className="px-4 py-2 border-b border-zinc-800 w-28">
+                    <Input type="number" min={1} max={2} value={p.ronda_actual} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, ronda_actual: parseInt(e.target.value || "1", 10) } : pr))} />
+                  </td>
+                  {/* Imagen URL */}
+                  <td className="px-4 py-2 border-b border-zinc-800 w-[260px]">
+                    <Input
+                      placeholder="https://... (Cloudinary/S3)"
+                      value={p.image_url || ""}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, image_url: e.target.value } : pr))}
+                    />
+                  </td>
+                  {/* Acciones */}
+                  <td className="px-4 py-2 border-b border-zinc-800">
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={savingId === p.id}
+                        onClick={() => actualizarPremio(p.id, {
+                          nombre: p.nombre,
+                          tipo: (p.tipo || "directo"),
+                          descripcion: p.descripcion,
+                          estado: p.estado,
+                          ronda_actual: p.ronda_actual,
+                          slug: p.slug || undefined,
+                          image_url: p.image_url || undefined,
+                        })}
+                      >
+                        Guardar
+                      </Button>
+                      <Button variant="danger" size="sm" disabled={savingId === p.id} onClick={() => setConfirmId(p.id)}>Eliminar</Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {premios.map((p) => (
-                  <tr key={p.id} className="odd:bg-white even:bg-gray-50">
-                    <td className="p-2 border text-xs break-all">{p.id}</td>
-                    <td className="p-2 border">
-                      <input className="border rounded px-2 py-1 w-full" value={p.nombre} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, nombre: e.target.value } : pr))} />
-                    </td>
-                    <td className="p-2 border">
-                      <input className="border rounded px-2 py-1 w-full" value={p.descripcion || ""} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, descripcion: e.target.value } : pr))} />
-                    </td>
-                    <td className="p-2 border">
-                      <select className="border rounded px-2 py-1" value={p.estado} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))}>
-                        <option value="cerrado">Cerrado</option>
-                        <option value="abierto">Abierto</option>
-                      </select>
-                    </td>
-                    <td className="p-2 border w-24">
-                      <input type="number" min={1} max={2} className="border rounded px-2 py-1 w-full" value={p.ronda_actual} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, ronda_actual: parseInt(e.target.value || "1", 10) } : pr))} />
-                    </td>
-                    <td className="p-2 border">
-                      <div className="flex gap-2">
-                        <button disabled={savingId === p.id} onClick={() => actualizarPremio(p.id, { nombre: p.nombre, descripcion: p.descripcion, estado: p.estado, ronda_actual: p.ronda_actual })} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">Guardar</button>
-                        <button disabled={savingId === p.id} onClick={() => eliminarPremio(p.id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">Eliminar</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </Table>
           </div>
-        )}
+        </Card>
       </main>
       <Footer />
+
+      <Modal open={!!confirmId} onClose={() => setConfirmId(null)} title="Confirmar eliminación">
+        <p>¿Seguro que deseas eliminar este premio? Esta acción no se puede deshacer.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setConfirmId(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={() => { if (confirmId) eliminarPremio(confirmId); setConfirmId(null); }}>Eliminar</Button>
+        </div>
+      </Modal>
     </div>
   );
 }
