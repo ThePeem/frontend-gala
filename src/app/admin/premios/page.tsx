@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Script from "next/script";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/utils/AuthContext";
@@ -26,25 +26,7 @@ type Premio = {
   tipo?: "directo" | "indirecto";
 };
 
-type CloudinaryResult = {
-  event: string;
-  info?: { secure_url?: string };
-};
-type CloudinaryWidget = { open: () => void };
-type CloudinaryGlobal = {
-  createUploadWidget: (
-    options: {
-      cloudName: string;
-      uploadPreset: string;
-      sources?: string[];
-      multiple?: boolean;
-      folder?: string;
-      maxFileSize?: number;
-      clientAllowedFormats?: string[];
-    },
-    callback: (error: unknown, result: CloudinaryResult) => void
-  ) => CloudinaryWidget;
-};
+// Eliminados tipos de Cloudinary: no usamos el widget en esta vista
 
 export default function AdminPremiosPage() {
   const { isAuthenticated, loading, axiosInstance } = useAuth();
@@ -61,7 +43,7 @@ export default function AdminPremiosPage() {
   const [nuevaRonda, setNuevaRonda] = useState(1);
   const [q, setQ] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [cldReady, setCldReady] = useState(false);
+  // const [cldReady, setCldReady] = useState(false); // no usado
 
   const fetchPremios = useCallback(async () => {
     try {
@@ -152,11 +134,7 @@ export default function AdminPremiosPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Script
-        src="https://widget.cloudinary.com/v2.0/global/all.js"
-        strategy="afterInteractive"
-        onLoad={() => setCldReady(true)}
-      />
+      {/* Script de Cloudinary eliminado: no se usa el widget en esta tabla */}
       <Header />
       <main className="flex-grow p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
