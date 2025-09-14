@@ -145,37 +145,7 @@ export default function AdminPremiosPage() {
     );
   }, [premios, q]);
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "";
-
-  const openUpload = (premioId: string) => {
-    if (!cldReady || !cloudName || !uploadPreset) {
-      show("error", "Cloudinary no está configurado. Revisa las variables NEXT_PUBLIC_CLOUDINARY_*.");
-      return;
-    }
-    const cld = (window as unknown as { cloudinary?: CloudinaryGlobal }).cloudinary;
-    if (!cld) return;
-    const widget = cld.createUploadWidget(
-      {
-        cloudName,
-        uploadPreset,
-        sources: ["local", "url", "camera"],
-        multiple: false,
-        folder: "premios",
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
-      },
-      async (_error, result) => {
-        if (result?.event === "success" && result.info?.secure_url) {
-          const url = result.info.secure_url;
-          // Actualizamos el estado local para previsualizar inmediatamente
-          setPremios((prev) => prev.map((p) => (p.id === premioId ? { ...p, image_url: url } : p)));
-          // Guardamos en backend
-          await actualizarPremio(premioId, { image_url: url });
-        }
-      }
-    );
-    widget.open();
-  };
+  // Eliminado openUpload (no usado). Si se desea reintroducir la subida vía widget, llamar a esta función desde un botón por fila.
 
   if (loading) return <p className="p-6">Cargando...</p>;
   if (!isAuthenticated) return <p className="p-6">Debes iniciar sesión para ver esta página.</p>;

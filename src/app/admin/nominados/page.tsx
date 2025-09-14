@@ -32,10 +32,6 @@ type CreateNominadoPayload = {
   usuarios_vinculados?: string[];
 };
 
-type UpdateNominadoPayload = Partial<Pick<Nominado, "premio" | "nombre" | "descripcion">> & {
-  usuarios_vinculados?: string[];
-};
-
 export default function AdminNominadosPage() {
   const { isAuthenticated, loading, axiosInstance } = useAuth();
   const [nominados, setNominados] = useState<Nominado[]>([]);
