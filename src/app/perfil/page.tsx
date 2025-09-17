@@ -124,23 +124,33 @@ export default function PerfilPage() {
       ]);
       
       setUsuario(perfilResponse.data);
-      // Normalizar estructura de nominaciones por si el backend varía las claves
-      const raw = Array.isArray(votosResponse.data) ? votosResponse.data : [];
-      const normalized: Voto[] = raw.map((it: any) => ({
-        id: String(it.id ?? it.pk ?? Math.random().toString(36).slice(2)),
-        premio_nombre: String(it.premio_nombre ?? it.premio ?? it.premio_titulo ?? it.premioNombre ?? it.premio_name ?? ''),
-        nominado_nombre: String(it.nominado_nombre ?? it.nominado ?? it.usuario ?? it.username ?? it.nombre ?? ''),
-        fecha_voto: String(it.fecha_voto ?? it.fecha ?? it.created_at ?? it.fechaCreacion ?? ''),
-        ronda: Number(it.ronda ?? it.ronda_votacion ?? it.fase ?? it.round ?? 0),
-        orden_ronda2: it.orden_ronda2 !== undefined ? Number(it.orden_ronda2) : undefined,
-      }));
+      // Normalizar estructura de nominaciones por si el backend varía las claves (evitar any)
+      const raw: unknown[] = Array.isArray(votosResponse.data) ? votosResponse.data : [];
+      const normalized: Voto[] = raw.map((it) => {
+        const o = it as Record<string, unknown>;
+        const pick = (...keys: string[]) => {
+          for (const k of keys) {
+            const v = o[k];
+            if (v !== undefined && v !== null && String(v).length > 0) return v as string | number;
+          }
+          return undefined;
+        };
+        const id = (pick('id', 'pk') ?? Math.random().toString(36).slice(2)).toString();
+        const premio_nombre = (pick('premio_nombre', 'premio', 'premio_titulo', 'premioNombre', 'premio_name') ?? '').toString();
+        const nominado_nombre = (pick('nominado_nombre', 'nominado', 'usuario', 'username', 'nombre') ?? '').toString();
+        const fecha_voto = (pick('fecha_voto', 'fecha', 'created_at', 'fechaCreacion') ?? '').toString();
+        const ronda = Number(pick('ronda', 'ronda_votacion', 'fase', 'round') ?? 0);
+        const orden_ronda2_raw = pick('orden_ronda2');
+        const orden_ronda2 = orden_ronda2_raw !== undefined ? Number(orden_ronda2_raw) : undefined;
+        return { id, premio_nombre, nominado_nombre, fecha_voto, ronda, orden_ronda2 } as Voto;
+      });
       setVotos(normalized);
 
       // Estadísticas opcionales (si endpoint existe)
       try {
         const statsResponse = await axiosInstance.get('api/mis-estadisticas/');
         setStats(statsResponse.data as PerfilStats);
-      } catch (e) {
+      } catch {
         // Fallback: computamos lo básico
         setStats({
           total_nominaciones: Array.isArray(votosResponse.data) ? votosResponse.data.length : 0,
