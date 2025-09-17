@@ -5,6 +5,9 @@ import Image from 'next/image';
 import Script from 'next/script';
 import { useAuth } from '../../utils/AuthContext';
 import { useRouter } from 'next/navigation';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { useToast } from '@/components/ui/Toast';
 
 interface Voto {
   id: string;
@@ -13,6 +16,70 @@ interface Voto {
   fecha_voto: string;
   ronda: number;
   orden_ronda2?: number;
+}
+
+function NominationsList({ votos, showR2 }: { votos: Voto[]; showR2: boolean }) {
+  // Agrupar por premio
+  const groups = new Map<string, { premio: string; nominados: string[]; hasR1: boolean; hasR2: boolean; fecha?: string }>();
+  for (const v of votos) {
+    const key = v.premio_nombre;
+    const entry = groups.get(key);
+    const d = new Date(v.fecha_voto);
+    const fecha = isFinite(d.getTime()) ? d.toLocaleDateString() : undefined;
+    const ronda = Number(v.ronda);
+    if (!entry) {
+      groups.set(key, {
+        premio: v.premio_nombre,
+        nominados: [v.nominado_nombre],
+        hasR1: ronda === 1,
+        hasR2: ronda === 2,
+        fecha,
+      });
+    } else {
+      if (!entry.nominados.includes(v.nominado_nombre)) entry.nominados.push(v.nominado_nombre);
+      entry.hasR1 = entry.hasR1 || ronda === 1;
+      entry.hasR2 = entry.hasR2 || ronda === 2;
+      entry.fecha = fecha || entry.fecha; // conservar la última válida
+    }
+  }
+
+  const items = Array.from(groups.values());
+
+  return (
+    <div className="space-y-3">
+      {items.map((g) => (
+        <div key={`${g.premio || 'premio'}::${g.nominados.join(',')}::${g.hasR1?'r1':''}${g.hasR2?'r2':''}`} className="border border-zinc-800 rounded-xl p-4 bg-zinc-900/60 hover:bg-zinc-900/70 transition-colors">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h3 className="headline text-[1rem] text-amber-300 mb-1">{g.premio || '(Sin título)'}</h3>
+              <p className="text-zinc-400 text-sm mb-2">
+                Nominado: <strong className="text-zinc-200">{g.nominados.join(', ')}</strong>
+              </p>
+              <div className="flex gap-4 text-sm text-zinc-500">
+                <span>Fecha: {g.fecha ?? '—'}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${g.hasR1 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>Ronda 1</span>
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${showR2 && g.hasR2 ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>Ronda 2</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface PerfilStats {
+  total_nominaciones: number;
+  total_votos_recibidos: number;
+  oros: number;
+  platas: number;
+  bronces: number;
+  fase?: {
+    mostrar_medallas?: boolean;
+    mostrar_ronda2?: boolean;
+  };
 }
 
 interface Usuario {
@@ -30,9 +97,11 @@ interface Usuario {
 export default function PerfilPage() {
   const { isAuthenticated, loading, axiosInstance } = useAuth();
   const router = useRouter();
+  const { show } = useToast();
   
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [votos, setVotos] = useState<Voto[]>([]);
+  const [stats, setStats] = useState<PerfilStats | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,7 +124,33 @@ export default function PerfilPage() {
       ]);
       
       setUsuario(perfilResponse.data);
-      setVotos(votosResponse.data);
+      // Normalizar estructura de nominaciones por si el backend varía las claves
+      const raw = Array.isArray(votosResponse.data) ? votosResponse.data : [];
+      const normalized: Voto[] = raw.map((it: any) => ({
+        id: String(it.id ?? it.pk ?? Math.random().toString(36).slice(2)),
+        premio_nombre: String(it.premio_nombre ?? it.premio ?? it.premio_titulo ?? it.premioNombre ?? it.premio_name ?? ''),
+        nominado_nombre: String(it.nominado_nombre ?? it.nominado ?? it.usuario ?? it.username ?? it.nombre ?? ''),
+        fecha_voto: String(it.fecha_voto ?? it.fecha ?? it.created_at ?? it.fechaCreacion ?? ''),
+        ronda: Number(it.ronda ?? it.ronda_votacion ?? it.fase ?? it.round ?? 0),
+        orden_ronda2: it.orden_ronda2 !== undefined ? Number(it.orden_ronda2) : undefined,
+      }));
+      setVotos(normalized);
+
+      // Estadísticas opcionales (si endpoint existe)
+      try {
+        const statsResponse = await axiosInstance.get('api/mis-estadisticas/');
+        setStats(statsResponse.data as PerfilStats);
+      } catch (e) {
+        // Fallback: computamos lo básico
+        setStats({
+          total_nominaciones: Array.isArray(votosResponse.data) ? votosResponse.data.length : 0,
+          total_votos_recibidos: 0,
+          oros: 0,
+          platas: 0,
+          bronces: 0,
+          fase: { mostrar_medallas: false, mostrar_ronda2: false },
+        });
+      }
     } catch (err) {
       console.error('Error fetching user data:', err);
       setError('Error al cargar la información del usuario');
@@ -70,10 +165,7 @@ export default function PerfilPage() {
     }
   }, [isAuthenticated, fetchUserData]);
 
-  const handleLogout = () => {
-    // El logout se maneja en AuthContext
-    router.push('/login');
-  };
+  // Eliminamos botones propios de logout / dashboard; se gestiona desde el Header
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
@@ -160,17 +252,9 @@ export default function PerfilPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Volver al Dashboard
-          </button>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b] px-4">
+        <div className="max-w-2xl w-full border border-red-500/30 bg-red-950/20 text-red-200 rounded-xl p-4">
+          {error}
         </div>
       </div>
     );
@@ -181,51 +265,15 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b]">
       <Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="afterInteractive" onLoad={() => setCldReady(true)} />
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                Cerrar Sesión
-              </button>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  className="w-full border rounded px-3 py-2 min-h-24"
-                  placeholder="Cuéntanos algo sobre ti..."
-                  value={usuario.descripcion || ''}
-                  onChange={(e) => setUsuario((prev) => (prev ? { ...prev, descripcion: e.target.value } : prev))}
-                />
-              </div>
-              <div className="pt-2">
-                <button onClick={saveProfile} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-60">
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-8">
+        <h1 className="headline text-[clamp(1.4rem,2.6vw,1.8rem)] mb-6">MI PERFIL</h1>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Información del Usuario */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Información Personal</h2>
-          
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px] mb-8">
+          <div className="rounded-2xl bg-zinc-950/70 p-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Foto de Perfil */}
             <div className="text-center">
@@ -233,19 +281,19 @@ export default function PerfilPage() {
                 <Image
                   src={usuario.foto_url || usuario.foto_perfil!}
                   alt="Foto de perfil"
-                  width={128}
-                  height={128}
-                  className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200"
+                  width={160}
+                  height={160}
+                  className="w-40 h-40 rounded-full mx-auto mb-4 object-cover border-4 border-zinc-800"
                   unoptimized
                 />
               ) : (
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center">
-                  <span className="text-4xl text-gray-500">
+                <div className="w-40 h-40 rounded-full mx-auto mb-4 bg-zinc-800 flex items-center justify-center">
+                  <span className="text-4xl text-zinc-400">
                     {usuario.first_name?.[0]?.toUpperCase() || usuario.username[0].toUpperCase()}
                   </span>
                 </div>
               )}
-              <button onClick={openUpload} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-60">
+              <button onClick={openUpload} disabled={saving} className="headline px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-900 font-extrabold shadow-[0_6px_18px_rgba(245,158,11,.35)] hover:from-yellow-300 hover:to-amber-500 disabled:opacity-60">
                 {saving ? 'Subiendo...' : 'Cambiar Foto'}
               </button>
             </div>
@@ -253,134 +301,123 @@ export default function PerfilPage() {
             {/* Datos del Usuario */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
-                <p className="text-gray-900 font-medium">{usuario.username}</p>
+                <label className="block text-sm text-zinc-400 mb-1">Usuario</label>
+                <p className="text-zinc-200 font-medium">{usuario.username}</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                  <label className="block text-sm text-zinc-400 mb-1">Nombre</label>
                   <input
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full rounded border border-zinc-700 bg-zinc-900 text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
                     value={usuario.first_name}
                     onChange={(e) => setUsuario((prev) => (prev ? { ...prev, first_name: e.target.value } : prev))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
+                  <label className="block text-sm text-zinc-400 mb-1">Apellidos</label>
                   <input
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full rounded border border-zinc-700 bg-zinc-900 text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
                     value={usuario.last_name}
                     onChange={(e) => setUsuario((prev) => (prev ? { ...prev, last_name: e.target.value } : prev))}
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <p className="text-gray-900">{usuario.email}</p>
+                <label className="block text-sm text-zinc-400 mb-1">Email</label>
+                <p className="text-zinc-200">{usuario.email}</p>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Verificación</label>
+                <label className="block text-sm text-zinc-400 mb-1">Estado de Verificación</label>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  usuario.verificado 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-yellow-100 text-yellow-800'
+                  usuario.verificado
+                    ? 'bg-green-900/30 text-green-300 border border-green-700/40'
+                    : 'bg-yellow-900/30 text-yellow-300 border border-yellow-700/40'
                 }`}>
                   {usuario.verificado ? 'Verificado' : 'Pendiente de verificación'}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Descripción + Guardar */}
+          <div className="mt-6 grid gap-4">
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">Descripción</label>
+              <textarea
+                className="w-full rounded border border-zinc-700 bg-zinc-900 text-zinc-100 px-3 py-2 min-h-28 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                placeholder="Cuéntanos algo sobre ti..."
+                value={usuario.descripcion || ''}
+                onChange={(e) => setUsuario((prev) => (prev ? { ...prev, descripcion: e.target.value } : prev))}
+              />
+            </div>
+            <div>
+              <button onClick={async () => { await saveProfile(); show('success', 'Perfil actualizado'); }} disabled={saving} className="headline px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-900 font-extrabold shadow-[0_6px_18px_rgba(245,158,11,.35)] hover:from-yellow-300 hover:to-amber-500 disabled:opacity-60">
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+          </div>
         </div>
 
         {/* Mis nominaciones */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Mis nominaciones</h2>
-          
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px]">
+          <div className="rounded-2xl bg-zinc-950/70 p-6">
+          <h2 className="headline text-[clamp(1.2rem,2.2vw,1.4rem)] mb-4">MIS NOMINACIONES</h2>
           {votos.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-gray-500 text-lg mb-4">
+              <div className="text-zinc-400 text-lg mb-4">
                 No tienes nominaciones actualmente
               </div>
               <button
                 onClick={() => router.push('/votar')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="headline px-4 py-2 rounded border border-amber-400 text-amber-400 hover:bg-amber-400/10"
               >
                 Ir a votar
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {votos.map((voto) => (
-                <div
-                  key={voto.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 mb-1">
-                        {voto.premio_nombre}
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-2">
-                        Nominado: <strong>{voto.nominado_nombre}</strong>
-                      </p>
-                      <div className="flex gap-4 text-sm text-gray-500">
-                        <span>Ronda: {voto.ronda}</span>
-                        {voto.orden_ronda2 && (
-                          <span>Posición: {voto.orden_ronda2}</span>
-                        )}
-                        <span>
-                          Fecha: {new Date(voto.fecha_voto).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        voto.ronda === 1 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        Ronda {voto.ronda}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <NominationsList votos={votos} showR2={stats?.fase?.mostrar_ronda2 ?? false} />
           )}
+          </div>
         </div>
 
         {/* Estadísticas */}
-        <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Estadísticas</h2>
-          
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600 mb-2">
-                {votos.length}
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px] mt-8">
+          <div className="rounded-2xl bg-zinc-950/70 p-6">
+            <h2 className="headline text-[clamp(1.2rem,2.2vw,1.4rem)] mb-4">ESTADÍSTICAS</h2>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-amber-400 mb-2">{stats?.total_nominaciones ?? votos.length}</div>
+                <div className="text-zinc-400">Nominaciones</div>
               </div>
-              <div className="text-gray-600">Total de Votos</div>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">
-                {votos.filter(v => v.ronda === 1).length}
+              <div className="text-center">
+                <div className="text-3xl font-bold text-cyan-400 mb-2">{stats?.total_votos_recibidos ?? 0}</div>
+                <div className="text-zinc-400">Votos recibidos</div>
               </div>
-              <div className="text-gray-600">Votos Ronda 1</div>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600 mb-2">
-                {votos.filter(v => v.ronda === 2).length}
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-300">{(stats?.fase?.mostrar_medallas ?? false) ? (stats?.oros ?? 0) : 0}</div>
+                    <div className="text-xs text-zinc-400">Oros</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-zinc-300">{(stats?.fase?.mostrar_medallas ?? false) ? (stats?.platas ?? 0) : 0}</div>
+                    <div className="text-xs text-zinc-400">Platas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-700">{(stats?.fase?.mostrar_medallas ?? false) ? (stats?.bronces ?? 0) : 0}</div>
+                    <div className="text-xs text-zinc-400">Bronces</div>
+                  </div>
+                </div>
               </div>
-              <div className="text-gray-600">Votos Ronda 2</div>
             </div>
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
