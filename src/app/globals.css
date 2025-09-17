@@ -23,3 +23,27 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Titulares: usa la fuente Russo One integrada en layout.tsx */
+.headline {
+  font-family: var(--font-russo), system-ui, sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* Aplicar Russo One por defecto a headings */
+h1, h2, h3 {
+  font-family: var(--font-russo), system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Ajuste tipográfico móvil: menos tracking en pantallas pequeñas */
+@media (max-width: 420px) {
+  h1, h2, h3 {
+    letter-spacing: 0.04em;
+  }
+  .headline {
+    letter-spacing: 0.05em;
+  }
+}
