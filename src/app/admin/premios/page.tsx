@@ -176,6 +176,7 @@ export default function AdminPremiosPage() {
               headers={["Foto", "Slug", "Nombre", "Tipo", "Descripción", "Estado", "Ronda", "Imagen (URL)", "Acciones"]}
               loading={fetching}
               emptyMessage={!fetching && filtered.length === 0 ? "Sin premios" : undefined}
+              tableClassName="min-w-[1400px] xl:min-w-[1600px]"
             >
               {filtered.map((p) => (
                 <tr key={p.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
@@ -193,20 +194,23 @@ export default function AdminPremiosPage() {
                     </div>
                   </td>
                   {/* Slug */}
-                  <td className="px-4 py-2 border-b border-zinc-800 w-48">
+                  <td className="px-4 py-2 border-b border-zinc-800 w-80 align-top">
                     <Input
                       placeholder="slug-estable"
                       value={p.slug || ""}
+                      title={p.slug || ""}
                       onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, slug: e.target.value } : pr))}
                     />
                   </td>
                   {/* Nombre */}
-                  <td className="px-4 py-2 border-b border-zinc-800 max-w-[220px]">
-                    <Input
+                  <td className="px-4 py-2 border-b border-zinc-800 align-top min-w-[280px]">
+                    <textarea
+                      rows={2}
                       title={p.nombre}
-                      className="truncate max-w-[220px]"
+                      placeholder="Nombre del premio"
                       value={p.nombre}
                       onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, nombre: e.target.value } : pr))}
+                      className="block w-full rounded-xl border bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:outline-none focus:ring-2 border-zinc-800 focus:border-amber-500/60 focus:ring-amber-500/30 whitespace-pre-wrap break-words"
                     />
                   </td>
                   {/* Tipo */}
@@ -218,12 +222,22 @@ export default function AdminPremiosPage() {
                     />
                   </td>
                   {/* Descripción */}
-                  <td className="px-4 py-2 border-b border-zinc-800">
-                    <Input value={p.descripcion || ""} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, descripcion: e.target.value } : pr))} />
+                  <td className="px-4 py-2 border-b border-zinc-800 align-top w-[420px]">
+                    <textarea
+                      rows={4}
+                      placeholder="Descripción del premio"
+                      value={p.descripcion || ""}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, descripcion: e.target.value } : pr))}
+                      className="block w-full rounded-xl border bg-zinc-950/60 px-3 py-2 text-zinc-100 shadow-inner placeholder-zinc-500 focus:outline-none focus:ring-2 border-zinc-800 focus:border-amber-500/60 focus:ring-amber-500/30 whitespace-pre-wrap break-words"
+                    />
                   </td>
                   {/* Estado */}
-                  <td className="px-4 py-2 border-b border-zinc-800">
-                    <Select value={p.estado} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))} options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]} />
+                  <td className="px-4 py-2 border-b border-zinc-800 align-top w-40 min-w-[10rem]">
+                    <Select
+                      value={p.estado}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))}
+                      options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]}
+                    />
                   </td>
                   {/* Ronda */}
                   <td className="px-4 py-2 border-b border-zinc-800 w-28">

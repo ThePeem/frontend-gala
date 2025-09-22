@@ -90,7 +90,10 @@ export default function AdminUsuariosPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-zinc-100">Gestión de Usuarios</h1>
-            <Button variant="secondary" onClick={fetchUsers}>Refrescar</Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => window.location.assign('/admin')}>Admin Hub</Button>
+              <Button variant="secondary" onClick={fetchUsers}>Refrescar</Button>
+            </div>
           </div>
           <Card>
             <div className="relative p-4">

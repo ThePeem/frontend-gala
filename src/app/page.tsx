@@ -36,10 +36,89 @@ function CountdownBanner() {
     return () => clearInterval(id);
   }, []);
   return (
-    <div className="headline text-center font-extrabold tracking-widest py-2 px-4 text-zinc-900 bg-gradient-to-r from-cyan-500 via-yellow-300 to-orange-500 text-sm md:text-base">
+    <div className="headline text-center font-extrabold tracking-widest py-2 px-4 text-zinc-900 bg-gradient-to-r from-cyan-500 via-yellow-300 to-orange-500 text-sm md:text-base relative z-10">
       {text}
     </div>
   );
+}
+
+// Efecto de nieve en canvas
+function SnowCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    type Flake = { x: number; y: number; r: number; s: number; w: number; a: number; o: number };
+
+    let W = 0;
+    let H = 0;
+    let flakes: Flake[] = [];
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const MAX_FLAKES_BASE = 140;
+    let raf = 0;
+
+    const spawn = (): Flake => ({
+      x: Math.random() * W,
+      y: Math.random() * -H,
+      r: 1.2 + Math.random() * 2.8,
+      s: 0.4 + Math.random() * 0.9,
+      w: 0.6 + Math.random() * 1.2,
+      a: Math.random() * Math.PI * 2,
+      o: 0.35 + Math.random() * 0.45,
+    });
+
+    const resize = () => {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const target = Math.round(MAX_FLAKES_BASE * (W / 1200 + 0.3));
+      if (flakes.length < target) {
+        for (let i = flakes.length; i < target; i++) flakes.push(spawn());
+      } else {
+        flakes = flakes.slice(0, target);
+      }
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      for (const f of flakes) {
+        f.y += f.s;
+        f.a += 0.01 + f.w * 0.015;
+        f.x += Math.sin(f.a) * f.w;
+
+        if (f.y - f.r > H) Object.assign(f, spawn(), { y: -10 });
+        if (f.x < -10) f.x = W + 10; else if (f.x > W + 10) f.x = -10;
+
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${f.o})`;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = 'rgba(255,255,255,0.6)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      raf = requestAnimationFrame(draw);
+    };
+
+    window.addEventListener('resize', resize);
+    resize();
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return <canvas ref={ref} className="fixed inset-0 pointer-events-none z-0" />;
 }
 
 function TrackCard({ t, index, playingIdx, setPlayingIdx }: { t: Track; index: number; playingIdx: number | null; setPlayingIdx: (n: number | null) => void; }) {
@@ -180,13 +259,16 @@ export default function HomePage() {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b]">
+    <div className="relative flex flex-col min-h-screen bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b]">
+      {/* Fondo nieve */}
+      <SnowCanvas />
+
       <Header />
 
       {/* Countdown banner */}
       <CountdownBanner />
 
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-zinc-800" style={{
           background: "radial-gradient(1100px 420px at 50% -8%, rgba(245,158,11,.16), transparent 60%), radial-gradient(800px 260px at 80% -4%, rgba(251,191,36,.12), transparent 60%)",

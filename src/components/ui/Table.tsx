@@ -7,12 +7,13 @@ export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> 
   headers: string[];
   emptyMessage?: string;
   loading?: boolean;
+  tableClassName?: string; // optional className applied to the <table>
 }
 
-export default function Table({ headers, children, className, emptyMessage = "Sin datos", loading = false, ...props }: TableProps) {
+export default function Table({ headers, children, className, tableClassName = "min-w-[900px]", emptyMessage = "Sin datos", loading = false, ...props }: TableProps) {
   return (
     <div className={clsx("w-full overflow-x-auto border border-zinc-800 rounded-xl", className)}>
-      <table className="w-full border-collapse min-w-[600px]" {...props}>
+      <table className={clsx("w-full border-collapse", tableClassName)} {...props}>
         <thead>
           <tr className="bg-zinc-950/60 text-left text-sm text-zinc-300">
             {headers.map((h) => (
