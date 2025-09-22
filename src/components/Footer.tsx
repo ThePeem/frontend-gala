@@ -93,7 +93,7 @@ export default function Footer() {
           />
           <SocialIcon
             label="GH"
-            href="https://github.com/"
+            href="https://github.com/ThePeem/frontend-gala"
             svg={
               <svg viewBox="0 0 24 24" className="h-6 w-6">
                 <path
