@@ -92,12 +92,34 @@ export default function AdminPremiosPage() {
   const actualizarPremio = async (id: string, cambios: Partial<Premio>) => {
     try {
       setSavingId(id);
-      const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, cambios);
+      // Sanitizar payload
+      const safe: any = { ...cambios };
+      if (safe.nombre !== undefined) safe.nombre = String(safe.nombre).trim();
+      if (safe.descripcion !== undefined) safe.descripcion = safe.descripcion === null ? null : String(safe.descripcion);
+      if (safe.slug !== undefined) {
+        const s = (safe.slug ?? '').toString().trim();
+        safe.slug = s.length ? s : null; // enviar null en lugar de cadena vacía
+      }
+      if (safe.ronda_actual !== undefined) {
+        let r = Number(safe.ronda_actual);
+        if (!Number.isFinite(r)) r = 1;
+        r = Math.max(1, Math.min(2, r));
+        safe.ronda_actual = r;
+      }
+      const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, safe);
       setPremios((prev) => prev.map((pr) => (pr.id === id ? res.data : pr)));
       show("success", "Premio actualizado");
     } catch (e) {
       console.error(e);
-      show("error", "No se pudo actualizar el premio");
+      // Extraer mensaje del backend si está disponible
+      const anyErr = e as any;
+      const data = anyErr?.response?.data;
+      if (data) {
+        const details = typeof data === 'string' ? data : JSON.stringify(data);
+        show("error", `Error al actualizar: ${details.substring(0, 300)}`);
+      } else {
+        show("error", "No se pudo actualizar el premio");
+      }
     } finally {
       setSavingId(null);
     }
