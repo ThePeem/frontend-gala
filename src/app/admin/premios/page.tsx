@@ -93,7 +93,7 @@ export default function AdminPremiosPage() {
     try {
       setSavingId(id);
       // Sanitizar payload
-      const safe: any = { ...cambios };
+      const safe: (Partial<Premio> & Record<string, unknown>) = { ...cambios } as Partial<Premio> & Record<string, unknown>;
       if (safe.nombre !== undefined) safe.nombre = String(safe.nombre).trim();
       if (safe.descripcion !== undefined) safe.descripcion = safe.descripcion === null ? null : String(safe.descripcion);
       if (safe.slug !== undefined) {
@@ -109,11 +109,14 @@ export default function AdminPremiosPage() {
       const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, safe);
       setPremios((prev) => prev.map((pr) => (pr.id === id ? res.data : pr)));
       show("success", "Premio actualizado");
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      console.error(err);
       // Extraer mensaje del backend si está disponible
-      const anyErr = e as any;
-      const data = anyErr?.response?.data;
+      let data: unknown = undefined;
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const resp = (err as { response?: { data?: unknown } }).response;
+        data = resp?.data;
+      }
       if (data) {
         const details = typeof data === 'string' ? data : JSON.stringify(data);
         show("error", `Error al actualizar: ${details.substring(0, 300)}`);
