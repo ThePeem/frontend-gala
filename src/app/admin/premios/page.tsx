@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Script from 'next/script';
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -35,6 +36,8 @@ export default function AdminPremiosPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const { show } = useToast();
+  const [failedImgs, setFailedImgs] = useState<Set<string>>(new Set());
+  const [cldReady, setCldReady] = useState(false);
 
   // Formulario creación
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -159,7 +162,8 @@ export default function AdminPremiosPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Script de Cloudinary eliminado: no se usa el widget en esta tabla */}
+      {/* Widget Cloudinary */}
+      <Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="afterInteractive" onLoad={() => setCldReady(true)} />
       <Header />
       <main className="flex-grow p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -209,12 +213,17 @@ export default function AdminPremiosPage() {
                   <td className="px-4 py-2 border-b border-zinc-800">
                     <div className="w-16 h-16 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
                       <Image
-                        src={p.image_url || (p.slug ? `/premios/${p.slug}.jpg` : `/premios/${p.id}.jpg`)}
+                        src={
+                          failedImgs.has(p.id)
+                            ? '/images/placeholder-premio.jpg'
+                            : (p.image_url || (p.slug ? `/premios/${encodeURIComponent(p.slug)}.jpg` : `/premios/${p.id}.jpg`))
+                        }
                         alt={`Imagen de ${p.nombre}`}
                         width={64}
                         height={64}
                         className="w-16 h-16 object-cover"
                         unoptimized
+                        onError={() => setFailedImgs(prev => new Set(prev).add(p.id))}
                       />
                     </div>
                   </td>
@@ -279,6 +288,64 @@ export default function AdminPremiosPage() {
                   {/* Acciones */}
                   <td className="px-4 py-2 border-b border-zinc-800">
                     <div className="flex gap-2 flex-wrap">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={savingId === p.id || !cldReady}
+                        onClick={async () => {
+                          if (!cldReady) { show('error', 'Cloudinary no está listo'); return; }
+                          const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+                          const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
+                          if (!cloudName || !uploadPreset) {
+                            show('error', 'Configura NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME y NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET');
+                            return;
+                          }
+                          type CloudinaryGlobal = {
+                            createUploadWidget: (
+                              options: {
+                                cloudName: string;
+                                uploadPreset: string;
+                                sources?: string[];
+                                multiple?: boolean;
+                                folder?: string;
+                                clientAllowedFormats?: string[];
+                              },
+                              callback: (error: unknown, result: { event: string; info?: { secure_url?: string } }) => void
+                            ) => { open: () => void };
+                          };
+                          const cld = (window as unknown as { cloudinary?: CloudinaryGlobal }).cloudinary;
+                          if (!cld) { show('error', 'No se pudo inicializar Cloudinary'); return; }
+                          const widget = cld.createUploadWidget(
+                            {
+                              cloudName,
+                              uploadPreset,
+                              sources: ['local', 'url', 'camera'],
+                              multiple: false,
+                              folder: 'premios',
+                              clientAllowedFormats: ['jpg','jpeg','png','webp'],
+                            },
+                            async (_error, result) => {
+                              if (result?.event === 'success' && result.info?.secure_url) {
+                                const url = result.info.secure_url;
+                                try {
+                                  setSavingId(p.id);
+                                  const res = await axiosInstance.patch<Premio>(`api/admin/premios/${p.id}/`, { image_url: url });
+                                  setPremios(prev => prev.map(pr => pr.id === p.id ? res.data : pr));
+                                  show('success', 'Imagen actualizada');
+                                } catch (err) {
+                                  console.error(err);
+                                  show('error', 'No se pudo guardar la imagen');
+                                } finally {
+                                  setSavingId(null);
+                                }
+                              }
+                            }
+                          );
+                          widget.open();
+                        }}
+                      >
+                        Subir imagen
+                      </Button>
                       <Button
                         variant="secondary"
                         size="sm"
