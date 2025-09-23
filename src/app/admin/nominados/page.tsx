@@ -167,7 +167,7 @@ export default function AdminNominadosPage() {
         axiosInstance.get<Premio[]>("api/admin/premios/") as unknown as Promise<{ data: Premio[] }>,
       ]);
       setNominados(nomRes.data);
-      setPremios(premRes.data.map((p: any) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo, vinculos_requeridos: p.vinculos_requeridos })));
+      setPremios(premRes.data.map((p: Premio) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo, vinculos_requeridos: p.vinculos_requeridos })));
     } catch (e) {
       console.error(e);
       setError("No se pudieron cargar nominados/premios");
@@ -268,6 +268,18 @@ export default function AdminNominadosPage() {
           const nombre = user ? (user.first_name || user.last_name ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : user.username) : "Usuario";
           const payload: CreateNominadoPayload = { premio: premioId, nombre, descripcion: null, usuarios_vinculados: [addId] };
           await axiosInstance.post<Nominado>("api/admin/nominados/", payload);
+        }
+        // Quitar: si el nominado tiene ese usuario; si solo tiene ese, eliminar; si tiene más, patch sin ese id
+        for (const remId of toRemove) {
+          const targets = nominadosPremio.filter(n => n.usuarios_vinculados_detalles?.some(u => u.id === remId));
+          for (const n of targets) {
+            const others = (n.usuarios_vinculados_detalles || []).filter(u => u.id !== remId).map(u => u.id);
+            if (others.length === 0) {
+              await axiosInstance.delete(`api/admin/nominados/${n.id}/`);
+            } else {
+              await axiosInstance.patch(`api/admin/nominados/${n.id}/`, { usuarios_vinculados: others });
+            }
+          }
         }
       } else {
         // Para vreq>1 no gestionamos en bloque aquí.

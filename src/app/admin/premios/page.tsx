@@ -114,7 +114,7 @@ export default function AdminPremiosPage() {
         let v = Number(safe.vinculos_requeridos);
         if (!Number.isFinite(v)) v = 1;
         v = Math.max(1, Math.min(5, v));
-        (safe as any).vinculos_requeridos = v;
+        safe.vinculos_requeridos = v;
       }
       const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, safe);
       setPremios((prev) => prev.map((pr) => (pr.id === id ? res.data : pr)));
