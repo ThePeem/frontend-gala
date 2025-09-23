@@ -62,7 +62,7 @@ export default function Header() {
 
         {/* Right nav */}
         <nav className={`nav nav--right hidden md:flex items-center gap-3 justify-center`}>
-          <NavLink href="/sugerencias">Sugerencias</NavLink>
+          <NavLink href="/soporte">Soporte</NavLink>
           <NavLink href="/votar" locked={!isAuthenticated}>Votar</NavLink>
           <NavLink href={isAuthenticated ? '/perfil' : '/login'}>{isAuthenticated ? 'Mi Perfil' : 'Iniciar sesión'}</NavLink>
           {isAuthenticated && (
@@ -113,7 +113,7 @@ export default function Header() {
             <Link href="/participantes" onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">Participantes</Link>
             <Link href="/premios" onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">Premios</Link>
             <Link href="/resultados" onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">Resultados</Link>
-            <Link href="/sugerencias" onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">Sugerencias</Link>
+            <Link href="/soporte" onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">Soporte</Link>
             <Link href={isAuthenticated ? '/votar' : '#'} onClick={(e) => { if (!isAuthenticated) { e.preventDefault(); } setOpen(false); }} className={`font-extrabold tracking-widest px-3 py-2 rounded border ${isAuthenticated ? 'text-white border-transparent hover:border-white/30 hover:bg-white/10' : 'text-white/70 border-white/20 cursor-not-allowed'}`}>Votar{!isAuthenticated ? ' 🔒' : ''}</Link>
             <Link href={isAuthenticated ? '/perfil' : '/login'} onClick={() => setOpen(false)} className="text-white font-extrabold tracking-widest px-3 py-2 rounded border border-transparent hover:border-white/30 hover:bg-white/10">{isAuthenticated ? 'Mi Perfil' : 'Iniciar sesión'}</Link>
           </nav>

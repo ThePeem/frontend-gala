@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../utils/AuthContext';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 
 type Perfil = { is_staff: boolean };
 
@@ -56,52 +58,50 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Panel de Administración</h1>
-        <p className="mb-6 text-gray-700">
-          Aquí estará el acceso a las herramientas de gestión del sistema: usuarios, nominaciones, premios y resultados.
-        </p>
+      <main className="flex-grow p-6 max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold text-zinc-100 mb-2">Panel de Administración</h1>
+        <p className="mb-6 text-zinc-400">Accesos a herramientas de gestión del sistema.</p>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="p-4 border rounded-lg shadow hover:shadow-md transition">
-            <h2 className="text-xl font-semibold mb-2">Usuarios</h2>
-            <button
-              onClick={() => router.push('/admin/usuarios')}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ir a Usuarios
-            </button>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <Card>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Usuarios</h2>
+              <p className="text-zinc-400 mb-4">Verificación y gestión de cuentas.</p>
+              <Button onClick={() => router.push('/admin/usuarios')}>Ir a Usuarios</Button>
+            </div>
+          </Card>
 
-          <div className="p-4 border rounded-lg shadow hover:shadow-md transition">
-            <h2 className="text-xl font-semibold mb-2">Premios</h2>
-            <button
-              onClick={() => router.push('/admin/premios')}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ir a Premios
-            </button>
-          </div>
+          <Card>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Premios</h2>
+              <p className="text-zinc-400 mb-4">Crear/editar premios y sus imágenes.</p>
+              <Button onClick={() => router.push('/admin/premios')}>Ir a Premios</Button>
+            </div>
+          </Card>
 
-          <div className="p-4 border rounded-lg shadow hover:shadow-md transition">
-            <h2 className="text-xl font-semibold mb-2">Nominados</h2>
-            <button
-              onClick={() => router.push('/admin/nominados')}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ir a Nominados
-            </button>
-          </div>
+          <Card>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Nominados</h2>
+              <p className="text-zinc-400 mb-4">Gestiona nominaciones directas e indirectas.</p>
+              <Button onClick={() => router.push('/admin/nominados')}>Ir a Nominados</Button>
+            </div>
+          </Card>
 
-          <div className="p-4 border rounded-lg shadow hover:shadow-md transition">
-            <h2 className="text-xl font-semibold mb-2">Resultados</h2>
-            <button
-              onClick={() => router.push('/admin/resultados')}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ir a Resultados
-            </button>
-          </div>
+          <Card>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Resultados</h2>
+              <p className="text-zinc-400 mb-4">Cálculo y publicación de ganadores.</p>
+              <Button onClick={() => router.push('/admin/resultados')}>Ir a Resultados</Button>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Sugerencias</h2>
+              <p className="text-zinc-400 mb-4">Revisa y gestiona las sugerencias enviadas por usuarios.</p>
+              <Button onClick={() => router.push('/admin/sugerencias')}>Ir a Sugerencias</Button>
+            </div>
+          </Card>
         </div>
       </main>
       <Footer />
