@@ -1,7 +1,7 @@
 // src/app/admin/sugerencias/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Card from "@/components/ui/Card";
@@ -32,11 +32,11 @@ export default function AdminSugerenciasPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Sugerencia | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setFetching(true);
       setError(null);
-      const res = await axiosInstance.get<Sugerencia[]>("api/admin/sugerencias/");
+      const res = await axiosInstance.get<Sugerencia>("api/admin/sugerencias/") as unknown as { data: Sugerencia[] };
       setItems(res.data);
     } catch (e) {
       console.error(e);
@@ -44,13 +44,13 @@ export default function AdminSugerenciasPage() {
     } finally {
       setFetching(false);
     }
-  };
+  }, [axiosInstance]);
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
       load();
     }
-  }, [loading, isAuthenticated]);
+  }, [loading, isAuthenticated, load]);
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
