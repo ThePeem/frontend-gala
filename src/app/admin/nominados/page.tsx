@@ -14,7 +14,7 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import Image from "next/image";
 
-type Premio = { id: string; nombre: string };
+type Premio = { id: string; nombre: string; tipo?: 'directo' | 'indirecto'; vinculos_requeridos?: number };
 type UsuarioDet = { id: string; username: string; first_name?: string; last_name?: string; foto_url?: string | null; foto_perfil?: string | null };
 type Nominado = {
   id: string;
@@ -24,6 +24,112 @@ type Nominado = {
   imagen: string | null;
   usuarios_vinculados_detalles?: UsuarioDet[];
 };
+
+// Minimal Axios-like shape to avoid importing axios types
+type AxiosLike = {
+  post: <T = unknown>(url: string, data?: unknown) => Promise<{ data: T }>;
+};
+
+function DirectPairsUI({
+  participants,
+  participantsLoading,
+  premioId,
+  axiosInstance,
+  fetchAll,
+  onClose,
+  show,
+}: {
+  participants: UsuarioDet[];
+  participantsLoading: boolean;
+  premioId: string;
+  axiosInstance: AxiosLike;
+  fetchAll: () => Promise<void> | void;
+  onClose: () => void;
+  show: (type: 'success' | 'error' | 'info', msg: string) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return prev; // máximo dos
+      return [...prev, id];
+    });
+  };
+
+  const savePair = async () => {
+    if (selected.length !== 2) {
+      show('error', 'Selecciona exactamente 2 participantes');
+      return;
+    }
+    try {
+      setSaving(true);
+      const [aId, bId] = selected;
+      const a = participants.find((u) => u.id === aId);
+      const b = participants.find((u) => u.id === bId);
+      const display = (u?: UsuarioDet) =>
+        u ? ((u.first_name || u.last_name) ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : u.username) : '';
+      const nombre = `${display(a)} + ${display(b)}`.trim();
+      const payload: CreateNominadoPayload = {
+        premio: premioId,
+        nombre: nombre || 'Pareja',
+        descripcion: null,
+        usuarios_vinculados: [aId, bId],
+      };
+      await (axiosInstance as AxiosLike).post<Nominado>(`api/admin/nominados/`, payload);
+      await fetchAll();
+      show('success', 'Pareja añadida');
+      onClose();
+    } catch (e) {
+      console.error(e);
+      show('error', 'No se pudo crear la pareja');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-3 text-sm text-zinc-300">Selecciona exactamente 2 participantes para crear la pareja.</div>
+      <div className="max-h-80 overflow-auto rounded border border-zinc-800">
+        {participantsLoading ? (
+          <div className="p-4 text-zinc-400">Cargando usuarios...</div>
+        ) : participants.length === 0 ? (
+          <div className="p-4 text-zinc-400">No hay usuarios verificados disponibles</div>
+        ) : (
+          <ul className="divide-y divide-zinc-800">
+            {participants.map((u) => {
+              const avatar = u.foto_url || u.foto_perfil || "";
+              const name = (u.first_name || u.last_name) ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : `@${u.username}`;
+              const checked = selected.includes(u.id);
+              return (
+                <li key={u.id} className="flex items-center gap-3 p-2 hover:bg-zinc-900/40 cursor-pointer" onClick={() => toggle(u.id)}>
+                  <input type="checkbox" checked={checked} onChange={() => toggle(u.id)} className="accent-amber-500" />
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                    {avatar ? (
+                      <Image src={avatar} alt={u.username} width={28} height={28} className="w-7 h-7 object-cover" unoptimized />
+                    ) : (
+                      <span className="text-xs text-zinc-300">{u.username[0]?.toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-zinc-100 text-sm">{name}</div>
+                    <div className="text-zinc-500 text-xs">@{u.username}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+        <Button onClick={savePair} disabled={saving || selected.length !== 2}>Guardar pareja</Button>
+      </div>
+    </div>
+  );
+}
 
 type CreateNominadoPayload = {
   premio: string;
@@ -61,7 +167,7 @@ export default function AdminNominadosPage() {
         axiosInstance.get<Premio[]>("api/admin/premios/") as unknown as Promise<{ data: Premio[] }>,
       ]);
       setNominados(nomRes.data);
-      setPremios(premRes.data.map((p) => ({ id: p.id, nombre: p.nombre })));
+      setPremios(premRes.data.map((p: any) => ({ id: p.id, nombre: p.nombre, tipo: p.tipo, vinculos_requeridos: p.vinculos_requeridos })));
     } catch (e) {
       console.error(e);
       setError("No se pudieron cargar nominados/premios");
@@ -136,8 +242,10 @@ export default function AdminNominadosPage() {
     if (!managePremioId) return;
     const premioId = managePremioId;
     const nominadosPremio = nominadosPorPremio[premioId] || [];
+    const premioMeta = premios.find(p => p.id === premioId);
+    const vreq = premioMeta?.vinculos_requeridos || 1;
 
-    // IDs actuales vinculados
+    // IDs actuales vinculados (para vreq=1)
     const currentIds = new Set<string>();
     nominadosPremio.forEach(n => n.usuarios_vinculados_detalles?.forEach(u => currentIds.add(u.id)));
     const nextIds = new Set(selectedUserIds);
@@ -153,31 +261,17 @@ export default function AdminNominadosPage() {
 
     try {
       setSavingId("bulk");
-      // Añadir: crear Nominado por usuario faltante (nombre = username)
-      for (const addId of toAdd) {
-        const user = participants.find(u => u.id === addId);
-        const nombre = user ? (user.first_name || user.last_name ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : user.username) : "Usuario";
-        const payload: CreateNominadoPayload = { premio: premioId, nombre, descripcion: null, usuarios_vinculados: [addId] };
-        await axiosInstance.post<Nominado>("api/admin/nominados/", payload);
-      }
-
-      // Quitar: si el nominado tiene ese usuario; si solo tiene ese, eliminar; si tiene más, patch sin ese id
-      for (const remId of toRemove) {
-        const targets = nominadosPremio.filter(n => n.usuarios_vinculados_detalles?.some(u => u.id === remId));
-        for (const n of targets) {
-          const others = (n.usuarios_vinculados_detalles || []).filter(u => u.id !== remId).map(u => u.id);
-          if (others.length === 0) {
-            await axiosInstance.delete(`api/admin/nominados/${n.id}/`);
-          } else {
-            await axiosInstance.patch(`api/admin/nominados/${n.id}/`, { usuarios_vinculados: others });
-          }
+      if (vreq === 1) {
+        // Añadir: crear Nominado por usuario faltante (nombre = username)
+        for (const addId of toAdd) {
+          const user = participants.find(u => u.id === addId);
+          const nombre = user ? (user.first_name || user.last_name ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : user.username) : "Usuario";
+          const payload: CreateNominadoPayload = { premio: premioId, nombre, descripcion: null, usuarios_vinculados: [addId] };
+          await axiosInstance.post<Nominado>("api/admin/nominados/", payload);
         }
+      } else {
+        // Para vreq>1 no gestionamos en bloque aquí.
       }
-
-      // Refresh y cerrar
-      await fetchAll();
-      setManagePremioId(null);
-      show("success", "Nominados actualizados");
     } catch (e) {
       console.error(e);
       show("error", "No se pudieron guardar los cambios");
@@ -290,49 +384,71 @@ export default function AdminNominadosPage() {
 
             {manageTab === 'directos' && (
               <div>
-                <div className="mb-3 text-sm text-zinc-300">Selecciona usuarios verificados para el premio.</div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs text-zinc-400">Seleccionados: {selectedUserIds.length} / {MAX_POR_PREMIO}</div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])}>Quitar todos</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds(participants.slice(0, MAX_POR_PREMIO).map(u => u.id))} disabled={participants.length === 0}>Seleccionar primeros</Button>
-                  </div>
-                </div>
-                <div className="max-h-80 overflow-auto rounded border border-zinc-800">
-                  {participantsLoading ? (
-                    <div className="p-4 text-zinc-400">Cargando usuarios...</div>
-                  ) : participants.length === 0 ? (
-                    <div className="p-4 text-zinc-400">No hay usuarios verificados disponibles</div>
-                  ) : (
-                    <ul className="divide-y divide-zinc-800">
-                      {participants.map(u => {
-                        const avatar = u.foto_url || u.foto_perfil || "";
-                        const name = (u.first_name || u.last_name) ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : `@${u.username}`;
-                        const checked = selectedUserIds.includes(u.id);
-                        return (
-                          <li key={u.id} className="flex items-center gap-3 p-2 hover:bg-zinc-900/40 cursor-pointer" onClick={() => toggleUserSelect(u.id)}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleUserSelect(u.id)} className="accent-amber-500" />
-                            <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                              {avatar ? (
-                                <Image src={avatar} alt={u.username} width={28} height={28} className="w-7 h-7 object-cover" unoptimized />
-                              ) : (
-                                <span className="text-xs text-zinc-300">{u.username[0]?.toUpperCase()}</span>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-zinc-100 text-sm">{name}</div>
-                              <div className="text-zinc-500 text-xs">@{u.username}</div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-                <div className="mt-4 flex justify-end gap-2">
-                  <Button variant="ghost" onClick={() => setManagePremioId(null)}>Cancelar</Button>
-                  <Button onClick={saveManageUsers} disabled={savingId === "bulk"}>Guardar</Button>
-                </div>
+                {(() => {
+                  const premioMeta = premios.find(p => p.id === managePremioId);
+                  const vreq = premioMeta?.vinculos_requeridos || 1;
+                  if (vreq === 1) {
+                    return (
+                      <div>
+                        <div className="mb-3 text-sm text-zinc-300">Selecciona usuarios verificados para el premio.</div>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-xs text-zinc-400">Seleccionados: {selectedUserIds.length} / {MAX_POR_PREMIO}</div>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])}>Quitar todos</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds(participants.slice(0, MAX_POR_PREMIO).map(u => u.id))} disabled={participants.length === 0}>Seleccionar primeros</Button>
+                          </div>
+                        </div>
+                        <div className="max-h-80 overflow-auto rounded border border-zinc-800">
+                          {participantsLoading ? (
+                            <div className="p-4 text-zinc-400">Cargando usuarios...</div>
+                          ) : participants.length === 0 ? (
+                            <div className="p-4 text-zinc-400">No hay usuarios verificados disponibles</div>
+                          ) : (
+                            <ul className="divide-y divide-zinc-800">
+                              {participants.map(u => {
+                                const avatar = u.foto_url || u.foto_perfil || "";
+                                const name = (u.first_name || u.last_name) ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : `@${u.username}`;
+                                const checked = selectedUserIds.includes(u.id);
+                                return (
+                                  <li key={u.id} className="flex items-center gap-3 p-2 hover:bg-zinc-900/40 cursor-pointer" onClick={() => toggleUserSelect(u.id)}>
+                                    <input type="checkbox" checked={checked} onChange={() => toggleUserSelect(u.id)} className="accent-amber-500" />
+                                    <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                                      {avatar ? (
+                                        <Image src={avatar} alt={u.username} width={28} height={28} className="w-7 h-7 object-cover" unoptimized />
+                                      ) : (
+                                        <span className="text-xs text-zinc-300">{u.username[0]?.toUpperCase()}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="text-zinc-100 text-sm">{name}</div>
+                                      <div className="text-zinc-500 text-xs">@{u.username}</div>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                        <div className="mt-4 flex justify-end gap-2">
+                          <Button variant="ghost" onClick={() => setManagePremioId(null)}>Cancelar</Button>
+                          <Button onClick={saveManageUsers} disabled={savingId === "bulk"}>Guardar</Button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // vreq > 1 (parejas)
+                  return (
+                    <DirectPairsUI
+                      participants={participants}
+                      participantsLoading={participantsLoading}
+                      premioId={managePremioId}
+                      axiosInstance={axiosInstance}
+                      fetchAll={fetchAll}
+                      onClose={() => setManagePremioId(null)}
+                      show={show}
+                    />
+                  );
+                })()}
               </div>
             )}
 

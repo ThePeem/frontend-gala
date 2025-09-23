@@ -25,6 +25,7 @@ type Premio = {
   slug?: string | null;
   image_url?: string | null;
   tipo?: "directo" | "indirecto";
+  vinculos_requeridos?: number;
 };
 
 // Eliminados tipos de Cloudinary: no usamos el widget en esta vista
@@ -108,6 +109,12 @@ export default function AdminPremiosPage() {
         if (!Number.isFinite(r)) r = 1;
         r = Math.max(1, Math.min(2, r));
         safe.ronda_actual = r;
+      }
+      if (safe.vinculos_requeridos !== undefined) {
+        let v = Number(safe.vinculos_requeridos);
+        if (!Number.isFinite(v)) v = 1;
+        v = Math.max(1, Math.min(5, v));
+        (safe as any).vinculos_requeridos = v;
       }
       const res = await axiosInstance.patch<Premio>(`api/admin/premios/${id}/`, safe);
       setPremios((prev) => prev.map((pr) => (pr.id === id ? res.data : pr)));
@@ -202,7 +209,7 @@ export default function AdminPremiosPage() {
 
 
             <Table
-              headers={["Foto", "Slug", "Nombre", "Tipo", "Descripción", "Estado", "Ronda", "Imagen (URL)", "Acciones"]}
+              headers={["Foto", "Nombre", "Tipo", "Descripción", "Estado", "Vínculos req.", "Ronda", "Imagen (URL)", "Acciones"]}
               loading={fetching}
               emptyMessage={!fetching && filtered.length === 0 ? "Sin premios" : undefined}
               tableClassName="min-w-[1400px] xl:min-w-[1600px]"
@@ -211,7 +218,7 @@ export default function AdminPremiosPage() {
                 <tr key={p.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
                   {/* Foto */}
                   <td className="px-4 py-2 border-b border-zinc-800">
-                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
                       <Image
                         src={
                           failedImgs.has(p.id)
@@ -219,22 +226,13 @@ export default function AdminPremiosPage() {
                             : (p.image_url || (p.slug ? `/premios/${encodeURIComponent(p.slug)}.jpg` : `/premios/${p.id}.jpg`))
                         }
                         alt={`Imagen de ${p.nombre}`}
-                        width={64}
-                        height={64}
-                        className="w-16 h-16 object-cover"
+                        width={96}
+                        height={96}
+                        className="w-24 h-24 object-cover"
                         unoptimized
                         onError={() => setFailedImgs(prev => new Set(prev).add(p.id))}
                       />
                     </div>
-                  </td>
-                  {/* Slug */}
-                  <td className="px-4 py-2 border-b border-zinc-800 w-80 align-top">
-                    <Input
-                      placeholder="slug-estable"
-                      value={p.slug || ""}
-                      title={p.slug || ""}
-                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, slug: e.target.value } : pr))}
-                    />
                   </td>
                   {/* Nombre */}
                   <td className="px-4 py-2 border-b border-zinc-800 align-top min-w-[280px]">
@@ -271,6 +269,16 @@ export default function AdminPremiosPage() {
                       value={p.estado}
                       onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))}
                       options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]}
+                    />
+                  </td>
+                  {/* Vínculos requeridos */}
+                  <td className="px-4 py-2 border-b border-zinc-800 w-32">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={p.vinculos_requeridos ?? 1}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, vinculos_requeridos: parseInt(e.target.value || '1', 10) } : pr))}
                     />
                   </td>
                   {/* Ronda */}
@@ -355,6 +363,7 @@ export default function AdminPremiosPage() {
                           tipo: (p.tipo || "directo"),
                           descripcion: p.descripcion,
                           estado: p.estado,
+                          vinculos_requeridos: p.vinculos_requeridos ?? 1,
                           ronda_actual: p.ronda_actual,
                           slug: p.slug || undefined,
                           image_url: p.image_url || undefined,
