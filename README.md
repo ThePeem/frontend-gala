@@ -1,50 +1,40 @@
 # Gala Premios Piorn - Frontend
 
-Frontend Next.js para el sistema de votación de la Gala Premios Piorn.
+Frontend en Next.js (App Router) para el sistema de votación de la Gala Premios Piorn.
 
-## 🚀 Despliegue Rápido
+## 🚀 Entornos y despliegue
 
-### 1. Clonar y configurar
-```bash
-git clone <tu-repositorio-frontend>
-cd frontend-gala
+- Producción: https://galapremiospiorn.vercel.app
+- Deploy: automático en Vercel con cada push a `main`.
+
+Variables de entorno (Vercel y desarrollo)
+```
+NEXT_PUBLIC_API_URL=https://galapremiospiorn.onrender.com
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...
+NEXT_PUBLIC_COUNTDOWN_TARGET=2025-12-01T00:00:00
+```
+
+Desarrollo local (opcional)
+```
 npm install
-```
-
-### 2. Configurar variables de entorno
-```bash
-cp env.example .env.local
-# Editar .env.local con tus valores
-```
-
-### 3. Ejecutar en desarrollo
-```bash
 npm run dev
 ```
 
-### 4. Construir para producción
-```bash
+Build
+```
 npm run build
 npm start
 ```
-
-## 🌐 Despliegue en Vercel
-
-### Variables de entorno necesarias:
-- `NEXT_PUBLIC_API_URL`: https://galapremiospiorn.onrender.com
-
-### Configuración automática:
-- Vercel detectará automáticamente que es un proyecto Next.js
-- El build command será: `npm run build`
-- El output directory será: `.next`
 
 ## 📚 Estructura del Proyecto
 
 ```
 src/
 ├── app/              # App Router (Next.js 13+)
-│   ├── login/        # Página de login
-│   ├── register/     # Página de registro
+│   ├── login/        # Login
+│   ├── perfil/       # Perfil (mis nominaciones, etc.)
+│   ├── admin/        # Admin (usuarios, premios, nominados)
 │   ├── layout.tsx    # Layout principal
 │   └── page.tsx      # Página principal
 ├── components/       # Componentes reutilizables
@@ -54,52 +44,38 @@ src/
     └── AuthContext.tsx
 ```
 
-## 🔧 Funcionalidades Implementadas
+## 🔧 Funcionalidades
 
-### ✅ Completado:
-- Sistema de autenticación con contexto
-- Formularios de login y registro
-- Página principal con resultados públicos
-- Configuración de API con Axios
-- Manejo de estados de carga y error
+- Autenticación con contexto (`src/utils/AuthContext.tsx`).
+- Admin de usuarios, premios y nominados (Cloudinary upload en premios).
+- Premios directos/indirectos y soporte de parejas (2 usuarios) vía `vinculos_requeridos`.
+- Home con banner de cuenta atrás y efecto de nieve.
 
-### 🚧 Pendiente:
-- Dashboard del usuario
-- Sistema de votación
-- Panel de administración
-- Gestión de premios y nominados
-- Sistema de resultados en tiempo real
+## 📱 Rutas principales
 
-## 📱 Páginas Disponibles
-
-- `/` - Página principal (resultados públicos)
+- `/` - Home
 - `/login` - Iniciar sesión
-- `/register` - Registro de usuario
+- `/perfil` - Perfil del usuario
+- `/admin/usuarios` - Gestión de usuarios
+- `/admin/premios` - Gestión de premios
+- `/admin/nominados` - Gestión de nominados
 
-## 🔌 API Integration
+## 🔌 API
 
-El frontend se comunica con el backend a través de:
-- **Base URL**: Configurada en `NEXT_PUBLIC_API_URL`
-- **Autenticación**: Tokens JWT
-- **Endpoints**: REST API del backend Django
+- Base URL: `NEXT_PUBLIC_API_URL`
+- Auth: Token en cabecera `Authorization: Token <token>` (lo gestiona `AuthContext`).
 
 ## 🎨 Estilos
 
-- CSS Modules para estilos específicos de componentes
-- Estilos inline para formularios (se puede migrar a CSS Modules)
-- Fuentes de Google Fonts (Geist)
+- Tailwind CSS, fuentes Google (Geist y Russo One), componentes propios en `src/components/`.
 
-## 🚀 Próximos Pasos
+## 🚀 Próximos pasos
 
-1. **Implementar dashboard del usuario**
-2. **Crear sistema de votación**
-3. **Añadir panel de administración**
-4. **Mejorar UI/UX con componentes más sofisticados**
-5. **Implementar notificaciones en tiempo real**
-6. **Añadir tests unitarios**
+1. Votación en frontend (flujos R1/R2 completos).
+2. Página pública de premios con diseño final.
+3. Métricas y resultados públicos.
 
-## 📝 Notas de Desarrollo
+## 📝 Notas
 
-- Usar `npm run dev` para desarrollo local
-- El backend debe estar corriendo en `http://localhost:8000` para desarrollo
-- Las variables de entorno deben empezar con `NEXT_PUBLIC_` para ser accesibles en el cliente
+- Las variables públicas deben empezar con `NEXT_PUBLIC_`.
+- En producción, configura las variables en Vercel Project Settings.
