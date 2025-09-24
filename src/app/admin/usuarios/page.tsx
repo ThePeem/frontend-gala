@@ -12,6 +12,7 @@ import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import Checkbox from "@/components/ui/Checkbox";
 import { useToast } from "@/components/ui/Toast";
+import Select from "@/components/ui/Select";
 
 type Usuario = {
   id: string; // UUID
@@ -22,6 +23,7 @@ type Usuario = {
   verificado: boolean;
   is_staff: boolean;
   foto_perfil?: string | null;
+  participante_tag?: string | null;
 };
 
 export default function AdminUsuariosPage() {
@@ -32,6 +34,26 @@ export default function AdminUsuariosPage() {
   const [q, setQ] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const { show } = useToast();
+
+  const PARTICIPANTE_OPTIONS = [
+    { label: "— Sin asignar —", value: "" },
+    { label: "Jose", value: "Jose" },
+    { label: "Garcia", value: "Garcia" },
+    { label: "Felipe", value: "Felipe" },
+    { label: "Catedra", value: "Catedra" },
+    { label: "Richi", value: "Richi" },
+    { label: "Alex", value: "Alex" },
+    { label: "Chema", value: "Chema" },
+    { label: "Dani", value: "Dani" },
+    { label: "Alejandra", value: "Alejandra" },
+    { label: "Sandra", value: "Sandra" },
+    { label: "Rocio", value: "Rocio" },
+    { label: "Joaquin", value: "Joaquin" },
+    { label: "Silvia", value: "Silvia" },
+    { label: "Gema", value: "Gema" },
+    { label: "Ana", value: "Ana" },
+    { label: "Tomas", value: "Tomas" },
+  ];
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -83,6 +105,23 @@ export default function AdminUsuariosPage() {
     }
   };
 
+  const setParticipante = async (user: Usuario, value: string) => {
+    try {
+      setSaving(user.id);
+      const payload: Partial<Usuario> = { participante_tag: value || null };
+      const res = await axiosInstance.patch<Usuario>(`api/admin/users/${user.id}/`, payload);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, participante_tag: res.data.participante_tag || null } : u));
+      show("success", "Participante asignado");
+    } catch (e: any) {
+      console.error(e);
+      // Si backend devuelve 400 por unique constraint, informar
+      const detail = e?.response?.data || e?.message || "Error";
+      show("error", `No se pudo asignar: ${typeof detail === 'string' ? detail : 'verifica que no esté asignado a otro usuario'}`);
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return (
     <>
       <Header />
@@ -111,7 +150,7 @@ export default function AdminUsuariosPage() {
               {error && <div className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2 mb-3">{error}</div>}
 
               <Table
-                headers={["ID", "Usuario", "Nombre", "Email", "Verificado", "Admin", "Acciones"]}
+                headers={["ID", "Usuario", "Nombre", "Email", "Participante", "Verificado", "Admin", "Acciones"]}
                 loading={fetching}
                 emptyMessage={filtered.length === 0 && !fetching ? "Sin usuarios" : undefined}
               >
@@ -130,6 +169,14 @@ export default function AdminUsuariosPage() {
                     </td>
                     <td className="px-4 py-2 border-b border-zinc-800 text-zinc-200">{u.first_name} {u.last_name}</td>
                     <td className="px-4 py-2 border-b border-zinc-800 text-zinc-200">{u.email}</td>
+                    <td className="px-4 py-2 border-b border-zinc-800">
+                      <Select
+                        value={u.participante_tag || ""}
+                        onChange={(e) => setParticipante(u, e.target.value)}
+                        options={PARTICIPANTE_OPTIONS}
+                        disabled={saving === u.id}
+                      />
+                    </td>
                     <td className="px-4 py-2 border-b border-zinc-800 text-center">
                       <Checkbox
                         id={`verificado-${u.id}`}
