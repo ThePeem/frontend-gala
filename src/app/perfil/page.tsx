@@ -194,10 +194,24 @@ export default function PerfilPage() {
     ) => { open: () => void };
   };
 
+  // Fallback: si el onLoad del Script no dispara, intenta detectar el widget tras montar
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const has = Boolean((window as unknown as { cloudinary?: unknown }).cloudinary);
+      if (has) setCldReady(true);
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
+
   const openUpload = () => {
     if (!usuario) return;
-    if (!cldReady || !cloudName || !uploadPreset) {
-      alert('Cloudinary no está configurado. Añade NEXT_PUBLIC_CLOUDINARY_* en .env.local');
+    if (!cldReady) {
+      alert('El widget de Cloudinary no se ha cargado aún. Reintenta en unos segundos.');
+      return;
+    }
+    if (!cloudName || !uploadPreset) {
+      const which = [!cloudName ? 'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME' : null, !uploadPreset ? 'NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET' : null].filter(Boolean).join(' y ');
+      alert(`Cloudinary no está configurado (${which}). Asegúrate de definir las variables en Vercel (Production) y volver a desplegar.`);
       return;
     }
     const cld = (window as unknown as { cloudinary?: CloudinaryGlobal }).cloudinary;
