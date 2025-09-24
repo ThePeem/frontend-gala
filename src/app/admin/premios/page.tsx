@@ -26,6 +26,7 @@ type Premio = {
   image_url?: string | null;
   tipo?: "directo" | "indirecto";
   vinculos_requeridos?: number;
+  ganadores_historicos?: { year: number | string; name: string }[] | null;
 };
 
 // Eliminados tipos de Cloudinary: no usamos el widget en esta vista
@@ -209,7 +210,7 @@ export default function AdminPremiosPage() {
 
 
             <Table
-              headers={["Foto", "Nombre", "Tipo", "Descripción", "Estado", "Vínculos req.", "Ronda", "Imagen (URL)", "Acciones"]}
+              headers={["Foto", "Nombre", "Tipo", "Descripción", "Estado", "Vínculos req.", "Ronda", "Histórico (3)", "Imagen (URL)", "Acciones"]}
               loading={fetching}
               emptyMessage={!fetching && filtered.length === 0 ? "Sin premios" : undefined}
               tableClassName="min-w-[1400px] xl:min-w-[1600px]"
@@ -284,6 +285,40 @@ export default function AdminPremiosPage() {
                   {/* Ronda */}
                   <td className="px-4 py-2 border-b border-zinc-800 w-28">
                     <Input type="number" min={1} max={2} value={p.ronda_actual} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, ronda_actual: parseInt(e.target.value || "1", 10) } : pr))} />
+                  </td>
+                  {/* Histórico de ganadores (hasta 3) */}
+                  <td className="px-4 py-2 border-b border-zinc-800 align-top w-[360px]">
+                    {Array.from({ length: 3 }).map((_, i) => {
+                      const list = p.ganadores_historicos ?? [];
+                      const item = list[i] || { year: '', name: '' };
+                      return (
+                        <div key={`${p.id}-hist-${i}`} className="flex gap-2 mb-2">
+                          <Input
+                            placeholder="Año"
+                            value={String(item.year ?? '')}
+                            onChange={(e) => setPremios(prev => prev.map(pr => {
+                              if (pr.id !== p.id) return pr;
+                              const arr = [...(pr.ganadores_historicos ?? [])];
+                              const next = { ...(arr[i] || { year: '', name: '' }), year: e.target.value };
+                              arr[i] = next;
+                              return { ...pr, ganadores_historicos: arr };
+                            }))}
+                          />
+                          <Input
+                            className="flex-1"
+                            placeholder="Nombre"
+                            value={String(item.name ?? '')}
+                            onChange={(e) => setPremios(prev => prev.map(pr => {
+                              if (pr.id !== p.id) return pr;
+                              const arr = [...(pr.ganadores_historicos ?? [])];
+                              const next = { ...(arr[i] || { year: '', name: '' }), name: e.target.value };
+                              arr[i] = next;
+                              return { ...pr, ganadores_historicos: arr };
+                            }))}
+                          />
+                        </div>
+                      );
+                    })}
                   </td>
                   {/* Imagen URL */}
                   <td className="px-4 py-2 border-b border-zinc-800 w-[260px]">
@@ -367,6 +402,7 @@ export default function AdminPremiosPage() {
                           ronda_actual: p.ronda_actual,
                           slug: p.slug || undefined,
                           image_url: p.image_url || undefined,
+                          ganadores_historicos: (p.ganadores_historicos || [])
                         })}
                       >
                         Guardar
