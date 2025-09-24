@@ -112,11 +112,20 @@ export default function AdminUsuariosPage() {
       const res = await axiosInstance.patch<Usuario>(`api/admin/users/${user.id}/`, payload);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, participante_tag: res.data.participante_tag || null } : u));
       show("success", "Participante asignado");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
       // Si backend devuelve 400 por unique constraint, informar
-      const detail = e?.response?.data || e?.message || "Error";
-      show("error", `No se pudo asignar: ${typeof detail === 'string' ? detail : 'verifica que no esté asignado a otro usuario'}`);
+      let detail = "Error";
+      if (typeof e === 'object' && e && 'message' in e && typeof (e as { message?: string }).message === 'string') {
+        detail = (e as { message: string }).message;
+      }
+      // Intentar leer response.data si existe (Axios)
+      const maybeAxios = e as { response?: { data?: unknown } };
+      if (maybeAxios?.response?.data) {
+        if (typeof maybeAxios.response.data === 'string') detail = maybeAxios.response.data;
+        else detail = 'verifica que el participante no esté asignado a otro usuario';
+      }
+      show("error", `No se pudo asignar: ${detail}`);
     } finally {
       setSaving(null);
     }

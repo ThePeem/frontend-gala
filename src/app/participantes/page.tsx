@@ -153,7 +153,7 @@ export default function ParticipantesPage() {
 
   const getPerfil = (name: Person): Usuario | null => {
     // 1) Si backend expone participante_tag, usarlo
-    const byTag = usuarios.find(u => (u as any).participante_tag && ((u as any).participante_tag as string).toLowerCase() === name.toLowerCase());
+    const byTag = usuarios.find(u => (u.participante_tag || "").toLowerCase() === name.toLowerCase());
     if (byTag) return byTag;
     // 2) Fallback heurístico: nombre o username similares
     const byName = usuarios.find(u => (u.first_name || '').toLowerCase() === name.toLowerCase());
@@ -170,6 +170,10 @@ export default function ParticipantesPage() {
 
       <div className="relative z-10">
         <Header />
+
+        {/* Estados de carga/errores mínimos para ESLint */}
+        {loading && <div className="px-4 pt-4 text-zinc-400 text-sm">Cargando datos…</div>}
+        {error && <div className="px-4 pt-2 text-red-400 text-sm">{error}</div>}
 
         {/* ====== BLOQUE PRINCIPAL ====== */}
         <section className="border-b border-zinc-800/60">
