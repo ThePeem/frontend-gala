@@ -63,6 +63,8 @@ function DirectPairsUI({
       show('error', 'Selecciona exactamente 2 participantes');
       return;
     }
+    const ok = window.confirm('¿Confirmas crear esta pareja como nominado del premio?');
+    if (!ok) return;
     try {
       setSaving(true);
       const [aId, bId] = selected;
@@ -83,7 +85,12 @@ function DirectPairsUI({
       onClose();
     } catch (e) {
       console.error(e);
-      show('error', 'No se pudo crear la pareja');
+      let msg = 'No se pudo crear la pareja';
+      const ax = e as { response?: { data?: unknown; status?: number } };
+      if (ax?.response?.data) {
+        msg += ': ' + (typeof ax.response.data === 'string' ? ax.response.data : JSON.stringify(ax.response.data));
+      }
+      show('error', msg);
     } finally {
       setSaving(false);
     }
@@ -259,6 +266,8 @@ export default function AdminNominadosPage() {
     const toAdd = [...nextIds].filter(id => !currentIds.has(id));
     const toRemove = [...currentIds].filter(id => !nextIds.has(id));
 
+    const ok = window.confirm('¿Guardar cambios de nominados para este premio?');
+    if (!ok) return;
     try {
       setSavingId("bulk");
       if (vreq === 1) {
@@ -286,7 +295,12 @@ export default function AdminNominadosPage() {
       }
     } catch (e) {
       console.error(e);
-      show("error", "No se pudieron guardar los cambios");
+      let msg = 'No se pudieron guardar los cambios';
+      const ax = e as { response?: { data?: unknown } };
+      if (ax?.response?.data) {
+        msg += ': ' + (typeof ax.response.data === 'string' ? ax.response.data : JSON.stringify(ax.response.data));
+      }
+      show("error", msg);
     } finally {
       setSavingId(null);
     }
@@ -296,6 +310,8 @@ export default function AdminNominadosPage() {
   const currentPremioNominados = (managePremioId ? (nominadosPorPremio[managePremioId] || []) : []);
   const addIndirect = async () => {
     if (!managePremioId || !newIndirectText.trim()) return;
+    const ok = window.confirm('¿Añadir este nominado indirecto al premio?');
+    if (!ok) return;
     try {
       setSavingId("indirect_add");
       const payload: CreateNominadoPayload = {
@@ -311,13 +327,20 @@ export default function AdminNominadosPage() {
       show("success", "Nominado añadido");
     } catch (e) {
       console.error(e);
-      show("error", "No se pudo añadir el nominado");
+      let msg = 'No se pudo añadir el nominado';
+      const ax = e as { response?: { data?: unknown } };
+      if (ax?.response?.data) {
+        msg += ': ' + (typeof ax.response.data === 'string' ? ax.response.data : JSON.stringify(ax.response.data));
+      }
+      show("error", msg);
     } finally {
       setSavingId(null);
     }
   };
 
   const patchIndirect = async (n: Nominado, fields: Partial<Nominado> & { usuarios_vinculados?: string[] }) => {
+    const ok = window.confirm('¿Guardar cambios de este nominado?');
+    if (!ok) return;
     try {
       setSavingId(n.id);
       await axiosInstance.patch(`api/admin/nominados/${n.id}/`, fields);
@@ -325,7 +348,12 @@ export default function AdminNominadosPage() {
       show("success", "Nominado actualizado");
     } catch (e) {
       console.error(e);
-      show("error", "No se pudo actualizar el nominado");
+      let msg = 'No se pudo actualizar el nominado';
+      const ax = e as { response?: { data?: unknown } };
+      if (ax?.response?.data) {
+        msg += ': ' + (typeof ax.response.data === 'string' ? ax.response.data : JSON.stringify(ax.response.data));
+      }
+      show("error", msg);
     } finally {
       setSavingId(null);
     }

@@ -23,6 +23,7 @@ type Usuario = {
   verificado: boolean;
   is_staff: boolean;
   foto_perfil?: string | null;
+  foto_url?: string | null;
   participante_tag?: string | null;
 };
 
@@ -159,17 +160,16 @@ export default function AdminUsuariosPage() {
               {error && <div className="text-sm text-red-400 bg-red-950/30 border border-red-900 rounded-lg px-3 py-2 mb-3">{error}</div>}
 
               <Table
-                headers={["ID", "Usuario", "Nombre", "Email", "Participante", "Verificado", "Admin", "Acciones"]}
+                headers={["Usuario", "Nombre", "Email", "Participante", "Verificado", "Admin", "Acciones"]}
                 loading={fetching}
                 emptyMessage={filtered.length === 0 && !fetching ? "Sin usuarios" : undefined}
               >
                 {filtered.map((u) => (
                   <tr key={u.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
-                    <td className="px-4 py-2 border-b border-zinc-800 text-xs text-zinc-400">{u.id}</td>
                     <td className="px-4 py-2 border-b border-zinc-800">
                       <div className="flex items-center gap-2">
-                        {u.foto_perfil ? (
-                          <Image src={u.foto_perfil} alt={`Foto de ${u.username}`} width={32} height={32} className="w-8 h-8 rounded-full object-cover" unoptimized />
+                        {u.foto_url || u.foto_perfil ? (
+                          <Image src={u.foto_url || u.foto_perfil || ''} alt={`Foto de ${u.username}`} width={32} height={32} className="w-8 h-8 rounded-full object-cover" unoptimized />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-zinc-800" />
                         )}

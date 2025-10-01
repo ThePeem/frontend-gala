@@ -287,15 +287,16 @@ export default function AdminPremiosPage() {
                     <Input type="number" min={1} max={2} value={p.ronda_actual} onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, ronda_actual: parseInt(e.target.value || "1", 10) } : pr))} />
                   </td>
                   {/* Histórico de ganadores (hasta 3) */}
-                  <td className="px-4 py-2 border-b border-zinc-800 align-top w-[360px]">
+                  <td className="px-4 py-2 border-b border-zinc-800 align-top w-[420px]">
                     {Array.from({ length: 3 }).map((_, i) => {
                       const list = p.ganadores_historicos ?? [];
                       const item = list[i] || { year: '', name: '' };
                       return (
-                        <div key={`${p.id}-hist-${i}`} className="flex gap-2 mb-2">
+                        <div key={`${p.id}-hist-${i}`} className="flex gap-2 mb-2 items-center">
                           <Input
                             placeholder="Año"
                             value={String(item.year ?? '')}
+                            className="w-24 shrink-0"
                             onChange={(e) => setPremios(prev => prev.map(pr => {
                               if (pr.id !== p.id) return pr;
                               const arr = [...(pr.ganadores_historicos ?? [])];
@@ -305,7 +306,7 @@ export default function AdminPremiosPage() {
                             }))}
                           />
                           <Input
-                            className="flex-1"
+                            className="flex-1 min-w-0"
                             placeholder="Nombre"
                             value={String(item.name ?? '')}
                             onChange={(e) => setPremios(prev => prev.map(pr => {

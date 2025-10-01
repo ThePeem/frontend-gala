@@ -127,19 +127,20 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
           ))}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {lista.map(n => {
             const u = (n.usuarios_vinculados_detalles || [])[0];
+            const img = u?.foto_url || u?.foto_perfil || '';
             return (
-              <div key={n.id} className="border border-zinc-800 rounded-xl p-3 bg-zinc-950/50">
-                <div className="flex items-center gap-3">
-                  <div className="relative h-12 w-12 rounded-full overflow-hidden bg-zinc-800">
-                    {u?.foto_url || u?.foto_perfil ? (
-                      <Image src={u.foto_url || u.foto_perfil || ''} alt={u?.username || n.nombre} fill className="object-cover" unoptimized />
-                    ) : null}
-                  </div>
-                  <div className="text-zinc-200 font-medium truncate">{n.nombre}</div>
+              <div key={n.id} className="border border-zinc-800 rounded-2xl p-4 bg-zinc-950/50 text-center">
+                <div className="mx-auto relative h-24 w-24 rounded-full overflow-hidden bg-zinc-800 shadow-inner">
+                  {img ? (
+                    <Image src={img} alt={u?.username || n.nombre} fill className="object-cover" unoptimized />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-zinc-500 text-xl">—</div>
+                  )}
                 </div>
+                <div className="mt-3 text-zinc-200 font-medium truncate" title={n.nombre}>{n.nombre}</div>
               </div>
             );
           })}
