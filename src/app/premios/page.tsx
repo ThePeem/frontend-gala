@@ -127,20 +127,20 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 place-items-center">
           {lista.map(n => {
             const u = (n.usuarios_vinculados_detalles || [])[0];
             const img = u?.foto_url || u?.foto_perfil || '';
             return (
-              <div key={n.id} className="border border-zinc-800 rounded-2xl p-4 bg-zinc-950/50 text-center">
-                <div className="mx-auto relative h-24 w-24 rounded-full overflow-hidden bg-zinc-800 shadow-inner">
+              <div key={n.id} className="border border-zinc-800 rounded-2xl p-4 bg-zinc-950/50 text-center flex flex-col items-center">
+                <div className="mx-auto relative h-36 w-36 rounded-full overflow-hidden bg-zinc-800 shadow-inner">
                   {img ? (
-                    <Image src={img} alt={u?.username || n.nombre} fill className="object-cover" unoptimized />
+                  <Image src={img} alt={u?.username || n.nombre} fill className="object-cover" unoptimized />
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center text-zinc-500 text-xl">—</div>
+                    <div className="h-full w-full flex items-center justify-center text-zinc-500 text-2xl">—</div>
                   )}
                 </div>
-                <div className="mt-3 text-zinc-200 font-medium truncate" title={n.nombre}>{n.nombre}</div>
+                <div className="mt-2 text-zinc-300 text-xs truncate" title={n.nombre}>{n.nombre}</div>
               </div>
             );
           })}
@@ -183,6 +183,12 @@ export default function PremiosPage() {
           <div className="max-w-6xl mx-auto text-center px-4 py-12 md:py-20">
             <h1 className="headline text-[clamp(1.8rem,6vw,3rem)]">Premios PIORN 2025</h1>
             <p className="text-zinc-400">Descubre las categorías y consulta los últimos ganadores.</p>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <a href="/sugerencias" className="headline inline-block px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-900 font-extrabold hover:from-yellow-300 hover:to-amber-500">
+                Se aceptan sugerencias de premios nuevos
+              </a>
+            </div>
+            <div className="mt-2 text-zinc-500 text-sm">No es la lista definitiva: se aceptan nuevas ideas.</div>
           </div>
         </section>
 
