@@ -11,8 +11,12 @@
   "dependencies": {
     "axios": "^1.10.0",
     "clsx": "^2.1.1",
-    "next": "15.3.5",
+    "next": "^15.5.4",
     "react": "^19.0.0",
+    "react-device-detect": "^2.2.3",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dnd-touch-backend": "^16.0.1",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
