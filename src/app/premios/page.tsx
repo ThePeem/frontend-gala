@@ -128,25 +128,35 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
           ))}
         </div>
       ) : (
-        <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 justify-items-center">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 px-2 sm:px-4">
           {lista.map(n => {
             const u = (n.usuarios_vinculados_detalles || [])[0];
             const img = u?.foto_url || u?.foto_perfil || '';
             return (
               <div
                 key={n.id}
-                className="border border-zinc-800 rounded-2xl bg-zinc-950/50 flex flex-col items-center justify-start overflow-hidden"
-                style={{ width: 180 }}
+                className="group relative border border-zinc-800 rounded-xl bg-zinc-900/70 hover:bg-zinc-800/70 transition-colors flex flex-col items-center p-2 sm:p-3 h-full"
               >
-                <div className="w-full aspect-[4/5] flex flex-col items-center justify-center p-4 gap-3">
-                  <div className="relative h-24 w-24 rounded-full overflow-hidden bg-zinc-800 shadow-inner shrink-0">
+                <div className="w-full flex flex-col items-center">
+                  <div className="relative h-12 w-12 sm:h-16 sm:w-16 rounded-full overflow-hidden bg-zinc-800 shadow-inner mb-1 sm:mb-2">
                     {img ? (
-                      <Image src={img} alt={u?.username || n.nombre} fill className="object-cover" unoptimized />
+                      <Image 
+                        src={img} 
+                        alt={u?.username || n.nombre} 
+                        fill 
+                        className="object-cover group-hover:scale-105 transition-transform" 
+                        unoptimized 
+                      />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center text-zinc-500 text-xl">—</div>
+                      <div className="h-full w-full flex items-center justify-center text-zinc-500 text-lg">—</div>
                     )}
                   </div>
-                  <div className="w-full text-center text-zinc-300 text-xs truncate" title={n.nombre}>{n.nombre}</div>
+                  <div 
+                    className="text-center text-zinc-300 text-xs sm:text-sm font-medium leading-tight line-clamp-2 px-1" 
+                    title={n.nombre}
+                  >
+                    {n.nombre}
+                  </div>
                 </div>
               </div>
             );
