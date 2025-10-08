@@ -23,10 +23,8 @@ interface Voto {
   es_activo: boolean;
 }
 
-function NominationsList({ votos, rondaActual, estadoActual }: { 
+function NominationsList({ votos }: { 
   votos: Voto[]; 
-  rondaActual: number;
-  estadoActual: string;
 }) {
   // Agrupar por premio y ronda
   const groups = new Map<string, {
@@ -146,7 +144,7 @@ function NominationsList({ votos, rondaActual, estadoActual }: {
                   <div className="space-y-2">
                     {datos.nominados
                       .sort((a, b) => (a.orden || 0) - (b.orden || 0))
-                      .map((nominado, idx) => (
+                      .map((nominado) => (
                         <div 
                           key={`${nominado.id}-${ronda}`}
                           className="flex items-center justify-between p-2 rounded-lg bg-zinc-800/50"
@@ -237,7 +235,25 @@ export default function PerfilPage() {
       const votosData = Array.isArray(votosResponse.data) ? votosResponse.data : [];
       
       // Mapear los votos al formato esperado
-      const normalizedVotos: Voto[] = votosData.map((voto: any) => ({
+      interface VotoAPI {
+        id: string;
+        premio?: {
+          id: string;
+          nombre: string;
+          estado: string;
+          ronda_actual: number;
+        };
+        nominado?: {
+          id: string;
+          nombre: string;
+        };
+        fecha_voto: string;
+        ronda: number;
+        orden_ronda2?: number;
+        es_activo: boolean;
+      }
+
+      const normalizedVotos: Voto[] = votosData.map((voto: VotoAPI) => ({
         id: voto.id,
         premio_id: voto.premio?.id || '',
         premio_nombre: voto.premio?.nombre || 'Premio desconocido',
@@ -511,11 +527,7 @@ export default function PerfilPage() {
               </button>
             </div>
           ) : (
-            <NominationsList 
-              votos={votos} 
-              rondaActual={stats?.ronda_actual || 1}
-              estadoActual={stats?.estado_actual || 'preparacion'}
-            />
+            <NominationsList votos={votos} />
           )}
           </div>
         </div>
