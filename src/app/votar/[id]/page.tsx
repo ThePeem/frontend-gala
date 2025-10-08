@@ -245,13 +245,18 @@ const DndContainer = ({ children }: { children: React.ReactNode }) => {
 
 export default function VotarPage() {
   // Usar el hook useAuth con tipos seguros
-  const auth = useAuth() as {
+  interface AuthContextType {
     isAuthenticated?: boolean;
     loading?: boolean;
     user?: { id: string } | null;
-    axiosInstance?: any;
+    axiosInstance?: {
+      get: (url: string) => Promise<{ data: unknown }>;
+      post: (url: string, data?: unknown) => Promise<{ data: unknown }>;
+    };
     token?: string | null;
-  };
+  }
+
+  const auth = useAuth() as AuthContextType;
   
   const isAuthenticated = auth?.isAuthenticated || false;
   const loading = auth?.loading || false;
@@ -273,7 +278,8 @@ export default function VotarPage() {
   const [estadoPremio, setEstadoPremio] = useState<string>('cargando...');
 
   const maxVotos = premio?.ronda_actual === 1 ? (premio.max_votos_ronda1 || 5) : 1;
-  const votosRestantes = maxVotos - votosSeleccionados.length;
+  // Eliminamos la variable no utilizada
+  // const votosRestantes = maxVotos - votosSeleccionados.length;
   const esRonda2 = premio?.ronda_actual === 2;
   const esGrupal = premio?.tipo === 'grupal';
 
@@ -307,7 +313,7 @@ export default function VotarPage() {
   }, [premioId, token]);
 
   // Cargar votos previos del usuario
-  const cargarVotosPrevios = async (ronda: number) => {
+  const cargarVotosPrevios = useCallback(async (ronda: number) => {
     if (!token) return;
     
     try {
@@ -319,14 +325,14 @@ export default function VotarPage() {
       
       if (response.ok) {
         const data = await response.json();
-        const votosPremio = data.find((v: any) => v.premio === premioId);
+        const votosPremio = data.find((v: { premio: string }) => v.premio === premioId);
         
         if (votosPremio) {
-          if (ronda === 1) {
-            setVotosSeleccionados(votosPremio.ronda_1.map((v: any) => v.nominado.id));
-          } else if (ronda === 2) {
+          if (ronda === 1 && votosPremio.ronda_1) {
+            setVotosSeleccionados(votosPremio.ronda_1.map((v: { nominado: { id: string } }) => v.nominado.id));
+          } else if (ronda === 2 && votosPremio.ronda_2) {
             const nuevoPodium: { [key in OrdenPodium]?: string } = {};
-            votosPremio.ronda_2.forEach((voto: any) => {
+            votosPremio.ronda_2.forEach((voto: { orden: number; nominado: { id: string } }) => {
               if (voto.orden === 1) nuevoPodium.oro = voto.nominado.id;
               else if (voto.orden === 2) nuevoPodium.plata = voto.nominado.id;
               else if (voto.orden === 3) nuevoPodium.bronce = voto.nominado.id;
@@ -339,25 +345,36 @@ export default function VotarPage() {
     } catch (err) {
       console.error('Error al cargar votos previos:', err);
     }
-  };
+  }, [token, premioId]);
 
   // Cargar datos del premio
   const fetchPremio = useCallback(async () => {
+    if (!token) return;
+    
     try {
       setLoadingPremio(true);
-      const response = await axiosInstance.get(`api/premios/${premioId}/`);
-      setPremio(response.data);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/premios/${premioId}/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+        },
+      });
       
-      // Verificar estado del voto
-      await verificarEstadoVoto();
-      
+      if (response.ok) {
+        const data = await response.json();
+        setPremio(data);
+        
+        // Verificar estado del voto
+        await verificarEstadoVoto();
+      } else {
+        throw new Error('Error al cargar el premio');
+      }
     } catch (err) {
       console.error("Error cargando datos:", err);
       setError("Error al cargar los datos del premio");
     } finally {
       setLoadingPremio(false);
     }
-  }, [axiosInstance, premioId, verificarEstadoVoto]);
+  }, [token, premioId, verificarEstadoVoto]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {

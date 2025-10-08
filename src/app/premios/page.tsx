@@ -211,11 +211,19 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
   
   const tipo = premio.tipo || 'directo';
   const vr = premio.vinculos_requeridos ?? 1;
-  const lista = Array.isArray(premio.nominados_visible) ? premio.nominados_visible : [];
-  const ganadores = Array.isArray(premio.ganadores) ? premio.ganadores : [];
-  const hayGanadores = ganadores.length > 0;
-  const esRonda2 = premio.ronda_actual === 2;
-  const esResultados = premio.estado === 'resultados';
+  
+  // Mover las variables que se usan en useMemo dentro del hook
+  const { lista, ganadores, hayGanadores, esRonda2, esResultados } = useMemo(() => {
+    const lista = Array.isArray(premio.nominados_visible) ? premio.nominados_visible : [];
+    const ganadores = Array.isArray(premio.ganadores) ? premio.ganadores : [];
+    return {
+      lista,
+      ganadores,
+      hayGanadores: ganadores.length > 0,
+      esRonda2: premio.ronda_actual === 2,
+      esResultados: premio.estado === 'resultados'
+    };
+  }, [premio.nominados_visible, premio.ganadores, premio.ronda_actual, premio.estado]);
 
   // Determinar qué mostrar según el estado y la ronda
   const mostrarLista = useMemo(() => {
