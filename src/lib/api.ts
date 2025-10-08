@@ -42,7 +42,7 @@ export async function apiFetch<T = unknown>(
       try {
         const errorData = await res.json();
         errorDetails = JSON.stringify(errorData);
-      } catch (e) {
+      } catch {
         const text = await res.text();
         errorDetails = text || 'No se pudo obtener detalles del error';
       }
