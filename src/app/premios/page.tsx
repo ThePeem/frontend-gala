@@ -207,13 +207,18 @@ function AwardCard({ premio, onOpen }: { premio: Premio; onOpen: (p: Premio) => 
 }
 
 function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: () => void }) {
-  if (!premio) return null;
-  
-  const tipo = premio.tipo || 'directo';
-  const vr = premio.vinculos_requeridos ?? 1;
-  
-  // Mover las variables que se usan en useMemo dentro del hook
+  // Mover los hooks al principio, antes de cualquier retorno condicional
   const { lista, ganadores, hayGanadores, esRonda2, esResultados } = useMemo(() => {
+    if (!premio) {
+      return {
+        lista: [],
+        ganadores: [],
+        hayGanadores: false,
+        esRonda2: false,
+        esResultados: false
+      };
+    }
+    
     const lista = Array.isArray(premio.nominados_visible) ? premio.nominados_visible : [];
     const ganadores = Array.isArray(premio.ganadores) ? premio.ganadores : [];
     return {
@@ -223,10 +228,12 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
       esRonda2: premio.ronda_actual === 2,
       esResultados: premio.estado === 'resultados'
     };
-  }, [premio.nominados_visible, premio.ganadores, premio.ronda_actual, premio.estado]);
+  }, [premio]);
 
   // Determinar qué mostrar según el estado y la ronda
   const mostrarLista = useMemo(() => {
+    if (!premio) return [];
+    
     // Si hay ganadores definidos, mostrar solo los ganadores
     if (esResultados && hayGanadores) {
       return lista.filter(n => ganadores.some(g => 'id' in g && g.id === n.id));
@@ -237,7 +244,12 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
     }
     // En otros casos, mostrar todos los nominados
     return lista;
-  }, [lista, esResultados, esRonda2, hayGanadores, ganadores]);
+  }, [lista, esResultados, esRonda2, hayGanadores, ganadores, premio]);
+  
+  const tipo = premio?.tipo || 'directo';
+  const vr = premio?.vinculos_requeridos ?? 1;
+  
+  if (!premio) return null;
 
   // Estilo del contenedor basado en la fase
   const containerClass = `w-full max-w-[800px] mx-auto p-2 sm:p-4 ${

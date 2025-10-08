@@ -880,7 +880,7 @@ export default function VotarPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {premio.nominados.map(nominado => {
                         const estaSeleccionado = votosSeleccionados.includes(nominado.id);
-                        const posicion = Object.entries(podium).find(([_, id]) => id === nominado.id)?.[0] as OrdenPodium | undefined;
+                        const posicion = Object.entries(podium).find(([, id]) => id === nominado.id)?.[0] as OrdenPodium | undefined;
                         
                         return (
                           <NominadoItem
