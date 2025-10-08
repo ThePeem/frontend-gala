@@ -262,7 +262,7 @@ export default function VotarPage() {
   const loading = auth?.loading || false;
   const user = auth?.user || null;
   const token = auth?.token || null;
-  const axiosInstance = auth?.axiosInstance;
+  // Remove unused axiosInstance since we're using fetch
   const router = useRouter();
   const params = useParams();
   const premioId = params.id as string;
@@ -282,35 +282,6 @@ export default function VotarPage() {
   // const votosRestantes = maxVotos - votosSeleccionados.length;
   const esRonda2 = premio?.ronda_actual === 2;
   const esGrupal = premio?.tipo === 'grupal';
-
-  // Verificar estado del voto
-  const verificarEstadoVoto = useCallback(async () => {
-    if (!premioId || !token) return;
-    
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verificar-voto/${premioId}/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setYaVoto(data.ya_voto);
-        setEstadoPremio(data.estado_premio || 'Desconocido');
-        
-        // Si ya votó, cargar sus votos para mostrarlos
-        if (data.ya_voto) {
-          cargarVotosPrevios(data.ronda_actual);
-        }
-        
-        return data;
-      }
-    } catch (err) {
-      console.error('Error al verificar estado del voto:', err);
-    }
-    return null;
-  }, [premioId, token]);
 
   // Cargar votos previos del usuario
   const cargarVotosPrevios = useCallback(async (ronda: number) => {
@@ -346,6 +317,35 @@ export default function VotarPage() {
       console.error('Error al cargar votos previos:', err);
     }
   }, [token, premioId]);
+
+  // Verificar estado del voto
+  const verificarEstadoVoto = useCallback(async () => {
+    if (!premioId || !token) return;
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verificar-voto/${premioId}/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setYaVoto(data.ya_voto);
+        setEstadoPremio(data.estado_premio || 'Desconocido');
+        
+        // Si ya votó, cargar sus votos para mostrarlos
+        if (data.ya_voto) {
+          await cargarVotosPrevios(data.ronda_actual);
+        }
+        
+        return data;
+      }
+    } catch (err) {
+      console.error('Error al verificar estado del voto:', err);
+    }
+    return null;
+  }, [premioId, token, cargarVotosPrevios]);
 
   // Cargar datos del premio
   const fetchPremio = useCallback(async () => {
@@ -385,7 +385,7 @@ export default function VotarPage() {
   }, [isAuthenticated, loading, router, premioId, fetchPremio]);
 
   // Manejar selección de nominados (Ronda 1)
-  const handleNominadoClick = (nominadoId: string) => {
+  const handleNominadoClick = useCallback((nominadoId: string) => {
     if (!premio) return;
 
     // Evitar auto-voto
@@ -410,31 +410,36 @@ export default function VotarPage() {
         return prev;
       });
     }
-  };
+  }, [premio, user?.id, esRonda2, maxVotos]);
 
   // Manejar arrastrar y soltar en el podio (Ronda 2)
-  const handleDropOnPodium = (id: string, posicion: OrdenPodium) => {
-    setPodium(prev => {
-      const newPodium = { ...prev };
+  const handleDropOnPodium = useCallback((id: string, posicion: OrdenPodium) => {
+    if (yaVoto) return;
+
+    setPodium(prevPodium => {
+      const newPodium = { ...prevPodium };
+      
       // Quitar de otras posiciones si ya estaba
-      Object.keys(newPodium).forEach(key => {
-        if (newPodium[key as OrdenPodium] === id) {
-          delete newPodium[key as OrdenPodium];
+      (Object.keys(newPodium) as OrdenPodium[]).forEach(key => {
+        if (newPodium[key] === id) {
+          delete newPodium[key];
         }
       });
+      
       // Asignar a la nueva posición
-      return { ...newPodium, [posicion]: id };
+      newPodium[posicion] = id;
+      
+      // Actualizar votos seleccionados
+      setVotosSeleccionados(Object.values(newPodium).filter(Boolean) as string[]);
+      
+      return newPodium;
     });
-    // Asegurarse de que esté seleccionado
-    if (!votosSeleccionados.includes(id)) {
-      setVotosSeleccionados([id]);
-    }
-  };
+  }, [yaVoto]);
 
   // Obtener el nombre de un nominado por su ID
-  const getNombreNominado = (id: string) => {
+  const getNombreNominado = useCallback((id: string) => {
     return premio?.nominados.find(n => n.id === id)?.nombre || 'Desconocido';
-  };
+  }, [premio?.nominados]);
 
   // Enviar votos
   const enviarVotos = async () => {
@@ -825,7 +830,7 @@ export default function VotarPage() {
                       return (
                         <PodiumSlot 
                           key={posicion} 
-                          posicion={posicion} 
+                          posicion={posicion}
                           onDrop={(id) => handleDropOnPodium(id, posicion)}
                         >
                           {nominado && (
