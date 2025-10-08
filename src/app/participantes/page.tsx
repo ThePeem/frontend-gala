@@ -2,15 +2,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from 'next/navigation';
+import { useAuth } from "@/utils/AuthContext";
 import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { apiFetch } from "@/lib/api";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
 
 /* ========== NIEVE (canvas) ========== */
 function SnowCanvas() {
+{{ ... }}
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -133,23 +137,41 @@ export default function ParticipantesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const { isAuthenticated, loading: authLoading, token } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    const run = async () => {
+    const fetchParticipants = async () => {
+      if (authLoading) return;
+      
+      if (!isAuthenticated) {
+        router.push('/login');
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        const data = await apiFetch<Usuario[]>("/api/participantes/");
-        setUsuarios(data);
-      } catch (e) {
-        console.error(e);
-        setError("No se pudieron cargar los participantes");
+        
+        console.log('Fetching participants...');
+        const data = await apiFetch<Usuario[]>(
+          "/api/participantes/",
+          {},
+          token || undefined
+        );
+        
+        console.log('Participants loaded:', data);
+        setUsuarios(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error loading participants:', err);
+        setError("No se pudieron cargar los participantes. Por favor, intenta recargar la página.");
       } finally {
         setLoading(false);
       }
     };
-    run();
-  }, []);
+
+    fetchParticipants();
+  }, [isAuthenticated, authLoading, router, token]);
 
   const getPerfil = (name: Person): Usuario | null => {
     // 1) Si backend expone participante_tag, usarlo

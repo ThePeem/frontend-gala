@@ -14,6 +14,9 @@ export async function apiFetch<T = unknown>(
   authToken?: string | null
 ): Promise<T> {
   const url = joinUrl(API_BASE, endpoint);
+  
+  console.log(`[apiFetch] Making request to: ${url}`);
+  console.log(`[apiFetch] Using API_BASE: ${API_BASE}`);
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -21,20 +24,43 @@ export async function apiFetch<T = unknown>(
     ...(authToken ? { Authorization: `Token ${authToken}` } : {}),
   };
 
-  const res = await fetch(url, { ...options, headers });
+  try {
+    const res = await fetch(url, { 
+      ...options, 
+      headers,
+      credentials: 'include' // Asegura que las cookies se envíen con la petición
+    });
 
-  // Respuestas sin contenido
-  if (res.status === 204) return null as T;
+    console.log(`[apiFetch] Response status: ${res.status} ${res.statusText}`);
 
-  // Manejo de error con detalle legible
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Error ${res.status} ${res.statusText} → ${text || "Sin detalles"}`);
+    // Respuestas sin contenido
+    if (res.status === 204) return null as T;
+
+    // Manejo de error con detalle legible
+    if (!res.ok) {
+      let errorDetails = '';
+      try {
+        const errorData = await res.json();
+        errorDetails = JSON.stringify(errorData);
+      } catch (e) {
+        const text = await res.text();
+        errorDetails = text || 'No se pudo obtener detalles del error';
+      }
+      
+      const error = new Error(`Error ${res.status} ${res.statusText} → ${errorDetails}`);
+      console.error('[apiFetch] API Error:', error);
+      throw error;
+    }
+
+    // Procesar la respuesta exitosa
+    const txt = await res.text();
+    const data = txt ? JSON.parse(txt) : null;
+    console.log('[apiFetch] Response data:', data);
+    return data;
+  } catch (error) {
+    console.error('[apiFetch] Request failed:', error);
+    throw error;
   }
-
-  // Puede ser JSON o vacío
-  const txt = await res.text();
-  return (txt ? JSON.parse(txt) : (null as T));
 }
 
 // Tipos alineados con el backend (ResultadosPremioSerializer devuelve 'id')
