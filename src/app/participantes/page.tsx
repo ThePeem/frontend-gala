@@ -10,11 +10,9 @@ import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
-import { apiFetch } from "@/lib/api";
 
 /* ========== NIEVE (canvas) ========== */
 function SnowCanvas() {
-{{ ... }}
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -137,7 +135,7 @@ export default function ParticipantesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const { isAuthenticated, loading: authLoading, token } = useAuth();
+  const { isAuthenticated, loading: authLoading, authToken } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -157,7 +155,7 @@ export default function ParticipantesPage() {
         const data = await apiFetch<Usuario[]>(
           "/api/participantes/",
           {},
-          token || undefined
+          authToken || undefined
         );
         
         console.log('Participants loaded:', data);
@@ -171,7 +169,7 @@ export default function ParticipantesPage() {
     };
 
     fetchParticipants();
-  }, [isAuthenticated, authLoading, router, token]);
+  }, [isAuthenticated, authLoading, router, authToken]);
 
   const getPerfil = (name: Person): Usuario | null => {
     // 1) Si backend expone participante_tag, usarlo
