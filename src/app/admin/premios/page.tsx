@@ -189,7 +189,16 @@ export default function AdminPremiosPage() {
             <div className="grid md:grid-cols-4 gap-3">
               <Input placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} />
               <Input placeholder="Descripción (opcional)" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} className="md:col-span-2" />
-              <Select value={nuevoEstado} onChange={(e) => setNuevoEstado(e.target.value as "abierto" | "cerrado")} options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]} />
+              <Select
+                value={nuevoEstado}
+                onChange={(e) => setNuevoEstado(e.target.value as 'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado')}
+                options={[
+                  { label: 'Preparación', value: 'preparacion' },
+                  { label: 'Votación R1', value: 'votacion_1' },
+                  { label: 'Votación R2', value: 'votacion_2' },
+                  { label: 'Finalizado', value: 'finalizado' },
+                ]}
+              />
               <Input type="number" min={1} max={2} placeholder="Ronda" value={nuevaRonda} onChange={(e) => setNuevaRonda(parseInt(e.target.value || "1", 10))} />
               <div>
                 <Button onClick={crearPremio} disabled={!nuevoNombre || savingId === "new"}>Crear</Button>
