@@ -60,7 +60,7 @@ export default function AdminUsuariosPage() {
     try {
       setFetching(true);
       setError(null);
-      const res = await axiosInstance.get<Usuario[]>("api/admin/users/");
+      const res = await axiosInstance.get<Usuario[]>("api/admin/usuarios/");
       setUsers(res.data);
     } catch (e) {
       console.error(e);
@@ -95,7 +95,7 @@ export default function AdminUsuariosPage() {
       } else {
         payload = { is_staff: !user.is_staff };
       }
-      await axiosInstance.patch(`api/admin/users/${user.id}/`, payload);
+      await axiosInstance.patch(`api/admin/usuarios/${user.id}/`, payload);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...payload } : u));
       show("success", "Usuario actualizado");
     } catch (e) {
@@ -110,7 +110,7 @@ export default function AdminUsuariosPage() {
     try {
       setSaving(user.id);
       const payload: Partial<Usuario> = { participante_tag: value || null };
-      const res = await axiosInstance.patch<Usuario>(`api/admin/users/${user.id}/`, payload);
+      const res = await axiosInstance.patch<Usuario>(`api/admin/usuarios/${user.id}/`, payload);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, participante_tag: res.data.participante_tag || null } : u));
       show("success", "Participante asignado");
     } catch (e: unknown) {

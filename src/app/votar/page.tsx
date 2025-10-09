@@ -11,7 +11,7 @@ interface Premio {
   id: string;
   nombre: string;
   descripcion: string | null;
-  estado: string;
+  estado: 'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado';
   ronda_actual: number;
 }
 
@@ -58,16 +58,16 @@ export default function VotarIndexPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-1 rounded-full ${
-                    premio.estado === "abierto" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                    (premio.estado === 'votacion_1' || premio.estado === 'votacion_2') ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {premio.estado === "abierto" ? "Abierto" : "Cerrado"}
+                    {(premio.estado === 'votacion_1' || premio.estado === 'votacion_2') ? 'Abierto' : 'Cerrado'}
                   </span>
                   <Link
                     href={`/votar/${premio.id}`}
                     className={`ml-2 px-3 py-2 rounded text-white ${
-                      premio.estado === "abierto" ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
+                      (premio.estado === 'votacion_1' || premio.estado === 'votacion_2') ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
                     }`}
-                    aria-disabled={premio.estado !== "abierto"}
+                    aria-disabled={!(premio.estado === 'votacion_1' || premio.estado === 'votacion_2')}
                   >
                     Ir a votar
                   </Link>
@@ -75,6 +75,12 @@ export default function VotarIndexPage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {!loading && !error && premios.length === 0 && (
+          <div className="mt-6 p-4 border rounded bg-yellow-50 text-yellow-800">
+            Las votaciones aún no están abiertas. Vuelve más tarde.
+          </div>
         )}
       </main>
       <Footer />

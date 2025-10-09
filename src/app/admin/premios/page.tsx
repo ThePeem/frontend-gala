@@ -20,7 +20,7 @@ type Premio = {
   id: string;
   nombre: string;
   descripcion: string | null;
-  estado: "abierto" | "cerrado";
+  estado: 'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado';
   ronda_actual: number;
   slug?: string | null;
   image_url?: string | null;
@@ -44,7 +44,7 @@ export default function AdminPremiosPage() {
   // Formulario creación
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
-  const [nuevoEstado, setNuevoEstado] = useState<"abierto" | "cerrado">("cerrado");
+  const [nuevoEstado, setNuevoEstado] = useState<'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado'>("preparacion");
   const [nuevaRonda, setNuevaRonda] = useState(1);
   const [q, setQ] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export default function AdminPremiosPage() {
       setPremios((p) => [res.data, ...p]);
       setNuevoNombre("");
       setNuevaDescripcion("");
-      setNuevoEstado("cerrado");
+      setNuevoEstado("preparacion");
       setNuevaRonda(1);
       show("success", "Premio creado");
     } catch (e) {
@@ -268,8 +268,13 @@ export default function AdminPremiosPage() {
                   <td className="px-4 py-2 border-b border-zinc-800 align-top w-40 min-w-[10rem]">
                     <Select
                       value={p.estado}
-                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as "abierto" | "cerrado" } : pr))}
-                      options={[{label:"Cerrado", value:"cerrado"},{label:"Abierto", value:"abierto"}]}
+                      onChange={(e) => setPremios(prev => prev.map(pr => pr.id === p.id ? { ...pr, estado: e.target.value as Premio['estado'] } : pr))}
+                      options={[
+                        { label: 'Preparación', value: 'preparacion' },
+                        { label: 'Votación R1', value: 'votacion_1' },
+                        { label: 'Votación R2', value: 'votacion_2' },
+                        { label: 'Finalizado', value: 'finalizado' },
+                      ]}
                     />
                   </td>
                   {/* Vínculos requeridos */}
