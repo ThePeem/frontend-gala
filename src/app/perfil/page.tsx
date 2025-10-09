@@ -9,69 +9,62 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useToast } from '@/components/ui/Toast';
 
-interface Voto {
+interface Nominacion {
   id: string;
-  premio_id: string;
-  premio_nombre: string;
-  premio_estado: string;
-  premio_ronda_actual: number;
-  nominado_id: string;
-  nominado_nombre: string;
-  fecha_voto: string;
+  premio: {
+    id: string;
+    nombre: string;
+    estado: string;
+    ronda_actual: number;
+  };
+  fecha_nominacion: string;
   ronda: number;
-  orden_ronda2?: number;
   es_activo: boolean;
 }
 
-function NominationsList({ votos }: { 
-  votos: Voto[]; 
+function NominationsList({ nominaciones }: { 
+  nominaciones: Nominacion[]; 
 }) {
-  // Agrupar por premio y ronda
+  // Agrupar por premio
   const groups = new Map<string, {
     premio_id: string;
     premio_nombre: string;
     premio_estado: string;
     premio_ronda_actual: number;
-    rondas: Map<number, {
-      nominados: Array<{id: string, nombre: string, fecha: string, orden?: number}>;
-      fecha_limite?: string;
+    nominados: Array<{
+      id: string;
+      fecha: string;
+      ronda: number;
+      es_activo: boolean;
     }>;
   }>();
 
-  // Procesar votos
-  for (const voto of votos) {
-    const key = voto.premio_id;
+  // Procesar nominaciones
+  for (const nominacion of nominaciones) {
+    const key = nominacion.premio.id;
     let group = groups.get(key);
-    const fechaVoto = new Date(voto.fecha_voto);
-    const fechaFormateada = isFinite(fechaVoto.getTime()) ? fechaVoto.toLocaleDateString() : 'Fecha no disponible';
+    const fechaNominacion = new Date(nominacion.fecha_nominacion);
+    const fechaFormateada = isFinite(fechaNominacion.getTime()) ? 
+      fechaNominacion.toLocaleDateString() : 'Fecha no disponible';
 
     if (!group) {
       group = {
-        premio_id: voto.premio_id,
-        premio_nombre: voto.premio_nombre,
-        premio_estado: voto.premio_estado,
-        premio_ronda_actual: voto.premio_ronda_actual,
-        rondas: new Map()
+        premio_id: nominacion.premio.id,
+        premio_nombre: nominacion.premio.nombre,
+        premio_estado: nominacion.premio.estado,
+        premio_ronda_actual: nominacion.premio.ronda_actual,
+        nominados: []
       };
       groups.set(key, group);
     }
 
-    // Inicializar la ronda si no existe
-    if (!group.rondas.has(voto.ronda)) {
-      group.rondas.set(voto.ronda, { nominados: [] });
-    }
-
-    const ronda = group.rondas.get(voto.ronda)!;
-    
-    // Agregar el nominado si no está ya en la lista
-    if (!ronda.nominados.some(n => n.id === voto.nominado_id)) {
-      ronda.nominados.push({
-        id: voto.nominado_id,
-        nombre: voto.nominado_nombre,
-        fecha: fechaFormateada,
-        orden: voto.orden_ronda2
-      });
-    }
+    // Agregar la nominación
+    group.nominados.push({
+      id: nominacion.id,
+      fecha: fechaFormateada,
+      ronda: nominacion.ronda,
+      es_activo: nominacion.es_activo
+    });
   }
 
   // Ordenar los grupos por estado (activos primero) y luego por nombre
@@ -83,6 +76,11 @@ function NominationsList({ votos }: {
     // Luego por nombre
     return a.premio_nombre.localeCompare(b.premio_nombre);
   });
+
+  // Función para obtener el texto de la ronda
+  const getRondaText = (ronda: number) => {
+    return ronda === 1 ? 'Ronda de nominación' : 'Ronda final';
+  };
 
   // Función para obtener el estado del premio
   const getEstadoPremio = (estado: string) => {
@@ -107,66 +105,63 @@ function NominationsList({ votos }: {
 
   return (
     <div className="space-y-6">
-      {sortedGroups.map((grupo) => {
-        const rondas = Array.from(grupo.rondas.entries())
-          .sort(([rondaA], [rondaB]) => rondaB - rondaA); // Ordenar de mayor a menor ronda
-
-        return (
-          <div 
-            key={`${grupo.premio_id}`} 
-            className={`border rounded-xl p-4 transition-colors ${
-              grupo.premio_estado.includes('votacion') 
-                ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' 
-                : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60'
-            }`}
-          >
-            <div className="flex justify-between items-start gap-4 mb-3">
-              <h3 className="text-lg font-semibold text-amber-300">{grupo.premio_nombre}</h3>
-              <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoColor(grupo.premio_estado)}`}>
-                {getEstadoPremio(grupo.premio_estado)}
-              </span>
-            </div>
-            
-            <div className="space-y-4">
-              {rondas.map(([ronda, datos]) => (
-                <div key={`${grupo.premio_id}-r${ronda}`} className="pl-2 border-l-2 border-zinc-700">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-zinc-400">
-                      {ronda === 1 ? 'Ronda de nominación' : 'Ronda final'}
-                    </span>
-                    {ronda === 2 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
-                        {grupo.premio_estado === 'finalizado' ? 'Finalizado' : 'En curso'}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {datos.nominados
-                      .sort((a, b) => (a.orden || 0) - (b.orden || 0))
-                      .map((nominado) => (
-                        <div 
-                          key={`${nominado.id}-${ronda}`}
-                          className="flex items-center justify-between p-2 rounded-lg bg-zinc-800/50"
-                        >
-                          <div className="flex items-center gap-3">
-                            {ronda === 2 && nominado.orden && (
-                              <span className="w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full bg-amber-500/20 text-amber-300">
-                                {nominado.orden}
-                              </span>
-                            )}
-                            <span className="text-zinc-200">{nominado.nombre}</span>
-                          </div>
-                          <span className="text-xs text-zinc-500">{nominado.fecha}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {sortedGroups.map((grupo) => (
+        <div 
+          key={`${grupo.premio_id}`} 
+          className={`border rounded-xl p-4 transition-colors ${
+            grupo.premio_estado.includes('votacion') 
+              ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' 
+              : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60'
+          }`}
+        >
+          <div className="flex justify-between items-start gap-4 mb-3">
+            <h3 className="text-lg font-semibold text-amber-300">{grupo.premio_nombre}</h3>
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoColor(grupo.premio_estado)}`}>
+              {getEstadoPremio(grupo.premio_estado)}
+            </span>
           </div>
-        );
-      })}
+          
+          <div className="space-y-4">
+            {grupo.nominados.length > 0 ? (
+              <div className="space-y-2">
+                {grupo.nominados.map((nominacion, index) => (
+                  <div 
+                    key={`${nominacion.id}-${index}`}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      nominacion.es_activo 
+                        ? 'bg-amber-500/10 border border-amber-500/20' 
+                        : 'bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-zinc-200">
+                        {getRondaText(nominacion.ronda)}
+                      </span>
+                      {!nominacion.es_activo && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-700/50 text-zinc-400">
+                          Anterior
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs ${nominacion.es_activo ? 'text-amber-400' : 'text-zinc-500'}`}>
+                        {nominacion.fecha}
+                      </span>
+                      {nominacion.es_activo && (
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-zinc-500 text-sm">
+                No hay nominaciones registradas para este premio.
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -204,7 +199,7 @@ export default function PerfilPage() {
   const { show } = useToast();
   
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [votos, setVotos] = useState<Voto[]>([]);
+  const [nominaciones, setNominaciones] = useState<Nominacion[]>([]);
   const [stats, setStats] = useState<PerfilStats | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -221,53 +216,47 @@ export default function PerfilPage() {
     try {
       setLoadingData(true);
       
-      // Obtener perfil del usuario y sus nominaciones en paralelo
-      const [perfilResponse, votosResponse, statsResponse] = await Promise.all([
+      // Obtener perfil del usuario, sus nominaciones y estadísticas en paralelo
+      const [perfilResponse, nominacionesResponse, statsResponse] = await Promise.all([
         axiosInstance.get('api/mi-perfil/'),
-        axiosInstance.get('api/mis-votos/'),
+        axiosInstance.get('api/mis-nominaciones/'),
         axiosInstance.get('api/mis-estadisticas/')
       ]);
       
       // Actualizar datos del usuario
       setUsuario(perfilResponse.data);
       
-      // Procesar votos
-      const votosData = Array.isArray(votosResponse.data) ? votosResponse.data : [];
+      // Procesar nominaciones
+      const nominacionesData = Array.isArray(nominacionesResponse.data) ? nominacionesResponse.data : [];
       
-      // Mapear los votos al formato esperado
-      interface VotoAPI {
+      // Mapear las nominaciones al formato esperado
+      interface NominacionAPI {
         id: string;
-        premio?: {
+        premio: {
           id: string;
           nombre: string;
           estado: string;
           ronda_actual: number;
         };
-        nominado?: {
-          id: string;
-          nombre: string;
-        };
-        fecha_voto: string;
+        fecha_nominacion: string;
         ronda: number;
-        orden_ronda2?: number;
         es_activo: boolean;
       }
 
-      const normalizedVotos: Voto[] = votosData.map((voto: VotoAPI) => ({
-        id: voto.id,
-        premio_id: voto.premio?.id || '',
-        premio_nombre: voto.premio?.nombre || 'Premio desconocido',
-        premio_estado: voto.premio?.estado || 'preparacion',
-        premio_ronda_actual: voto.premio?.ronda_actual || 1,
-        nominado_id: voto.nominado?.id || '',
-        nominado_nombre: voto.nominado?.nombre || 'Desconocido',
-        fecha_voto: voto.fecha_voto || new Date().toISOString(),
-        ronda: voto.ronda || 1,
-        orden_ronda2: voto.orden_ronda2,
-        es_activo: voto.premio?.estado === 'votacion_1' || voto.premio?.estado === 'votacion_2'
+      const normalizedNominaciones: Nominacion[] = nominacionesData.map((nominacion: NominacionAPI) => ({
+        id: nominacion.id,
+        premio: {
+          id: nominacion.premio.id,
+          nombre: nominacion.premio.nombre,
+          estado: nominacion.premio.estado,
+          ronda_actual: nominacion.premio.ronda_actual
+        },
+        fecha_nominacion: nominacion.fecha_nominacion,
+        ronda: nominacion.ronda,
+        es_activo: nominacion.es_activo
       }));
       
-      setVotos(normalizedVotos);
+      setNominaciones(normalizedNominaciones);
       
       // Procesar estadísticas
       const statsData = statsResponse.data || {};
@@ -509,36 +498,36 @@ export default function PerfilPage() {
           </div>
           </div>
         </div>
-
         {/* Mis nominaciones */}
-        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px]">
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px] mb-8">
           <div className="rounded-2xl bg-zinc-950/70 p-6">
-          <h2 className="headline text-[clamp(1.2rem,2.2vw,1.4rem)] mb-4">MIS NOMINACIONES</h2>
-          {votos.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-zinc-400 text-lg mb-4">
-                No tienes nominaciones actualmente
+            <h2 className="headline text-[clamp(1.2rem,2.2vw,1.4rem)] mb-4">MIS NOMINACIONES</h2>
+            {nominaciones.length === 0 ? (
+              <div className="text-center py-12">
+                <h3 className="text-xl font-semibold text-zinc-200 mb-2">No tienes nominaciones</h3>
+                <p className="text-zinc-400 mb-4">
+                  Aún no has sido nominado en ninguna categoría.
+                </p>
+                <button
+                  onClick={() => router.push('/premios')}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
+                >
+                  Ver premios
+                </button>
               </div>
-              <button
-                onClick={() => router.push('/votar')}
-                className="headline px-4 py-2 rounded border border-amber-400 text-amber-400 hover:bg-amber-400/10"
-              >
-                Ir a votar
-              </button>
-            </div>
-          ) : (
-            <NominationsList votos={votos} />
-          )}
+            ) : (
+              <NominationsList nominaciones={nominaciones} />
+            )}
           </div>
         </div>
 
         {/* Estadísticas */}
-        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px] mt-8">
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px] mb-8">
           <div className="rounded-2xl bg-zinc-950/70 p-6">
             <h2 className="headline text-[clamp(1.2rem,2.2vw,1.4rem)] mb-4">ESTADÍSTICAS</h2>
             <div className="grid gap-6 md:grid-cols-3">
               <div className="text-center">
-                <div className="text-3xl font-bold text-amber-400 mb-2">{stats?.total_nominaciones ?? votos.length}</div>
+                <div className="text-3xl font-bold text-amber-400 mb-2">{stats?.total_nominaciones ?? nominaciones.length}</div>
                 <div className="text-zinc-400">Nominaciones</div>
               </div>
               <div className="text-center">
