@@ -98,12 +98,12 @@ function NominationsList({ nominaciones, winnerMap }: {
           <div className="flex items-center gap-2">
             {grupo.nominados.some(n => n.ronda === 1) && (
               <span className="px-3 py-1 text-xs font-medium rounded-full border bg-blue-900/30 text-blue-300 border-blue-700/40">
-                R1
+                Ronda 1
               </span>
             )}
             {grupo.nominados.some(n => n.ronda === 2) && (grupo.premio_ronda_actual >= 2 || ['votacion_2', 'finalizado'].includes(grupo.premio_estado)) && (
               <span className="px-3 py-1 text-xs font-medium rounded-full border bg-purple-900/30 text-purple-300 border-purple-700/40">
-                R2
+                Ronda 2
               </span>
             )}
             {(() => {

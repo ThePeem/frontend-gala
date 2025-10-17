@@ -56,6 +56,7 @@ export default function AdminResultadosPage() {
   const [resultadosVista, setResultadosVista] = useState<ResultadoPublico[] | null>(null);
   const [calculando, setCalculando] = useState(false);
   const [publicando, setPublicando] = useState(false);
+  const [reseteando, setReseteando] = useState(false);
   const [estadisticas, setEstadisticas] = useState<EstadisticasGlobales | null>(null);
   const [actualizandoFase, setActualizandoFase] = useState(false);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
@@ -98,6 +99,22 @@ export default function AdminResultadosPage() {
     setMensajeConfirmacion(mensaje);
     setAccionConfirmar(() => accion);
     setMostrarConfirmacion(true);
+  };
+
+  const resetGala = async () => {
+    try {
+      setReseteando(true);
+      setError(null);
+      await axiosInstance.post("api/admin/reset-gala/");
+      setResultadosVista(null);
+      await fetchData();
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo reiniciar la gala");
+    } finally {
+      setReseteando(false);
+      setMostrarConfirmacion(false);
+    }
   };
   
   // Avanzar a la siguiente fase
@@ -296,6 +313,16 @@ export default function AdminResultadosPage() {
                   disabled={!puedePublicar || publicando}
                 >
                   {publicando ? 'Publicando...' : 'Publicar resultados'}
+                </Button>
+              </div>
+              <div className="mt-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => confirmarAccion('Esto borrará TODOS los votos y reiniciará las fases a preparación. ¿Confirmas reiniciar la gala?', resetGala)}
+                  disabled={reseteando}
+                  className="border-red-600/40 text-red-300 hover:text-red-200 hover:border-red-500/50"
+                >
+                  {reseteando ? 'Reiniciando…' : 'Reiniciar gala (borrar votos)'}
                 </Button>
               </div>
             </div>
