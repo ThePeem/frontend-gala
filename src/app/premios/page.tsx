@@ -299,19 +299,39 @@ function NominadosModal({ premio, onClose }: { premio: Premio | null; onClose: (
       ) : tipo === 'indirecto' ? (
         <ul className="space-y-2">
           {mostrarLista.map((n, index) => (
-            <li 
-              key={n.id} 
+            <li
+              key={n.id}
               className={`border rounded-lg p-3 ${
-                premio.ronda_actual === 2 
-                  ? 'bg-gradient-to-r from-amber-900/30 to-amber-900/10 border-amber-800/50' 
+                premio.ronda_actual === 2
+                  ? 'bg-gradient-to-r from-amber-900/30 to-amber-900/10 border-amber-800/50'
                   : 'bg-zinc-950/50 border-zinc-800'
               }`}
             >
               {premio.ronda_actual === 2 && (
                 <div className="text-amber-400 font-bold text-sm mb-1">Finalista #{index + 1}</div>
               )}
-              <div className="text-zinc-100 font-medium">{n.nombre}</div>
-              {n.descripcion && <div className="text-sm text-zinc-400 mt-1">{n.descripcion}</div>}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-zinc-100 font-medium break-words">{n.nombre}</div>
+                  {n.descripcion && (
+                    <div className="text-sm text-zinc-400 mt-1 break-words">{n.descripcion}</div>
+                  )}
+                </div>
+                <div className="shrink-0 ml-2">
+                  {(() => {
+                    const owner = (n.usuarios_vinculados_detalles || [])[0];
+                    const ownerName = owner?.first_name || owner?.username;
+                    return (
+                      <span
+                        className="inline-block text-xs sm:text-sm px-2 py-1 rounded-full border bg-cyan-900/30 border-cyan-700/40 text-cyan-300"
+                        title={ownerName ? `Pertenece a ${ownerName}` : 'Autor no disponible'}
+                      >
+                        {ownerName ? `de ${ownerName}` : '—'}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
             </li>
           ))}
         </ul>

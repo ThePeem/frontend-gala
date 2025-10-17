@@ -22,8 +22,9 @@ interface Nominacion {
   es_activo: boolean;
 }
 
-function NominationsList({ nominaciones }: { 
-  nominaciones: Nominacion[]; 
+function NominationsList({ nominaciones, winnerMap }: {
+  nominaciones: Nominacion[];
+  winnerMap: Record<string, 'oro' | 'plata' | 'bronce'>;
 }) {
   // Agrupar por premio
   const groups = new Map<string, {
@@ -106,59 +107,39 @@ function NominationsList({ nominaciones }: {
   return (
     <div className="space-y-6">
       {sortedGroups.map((grupo) => (
-        <div 
-          key={`${grupo.premio_id}`} 
+        <div
+          key={`${grupo.premio_id}`}
           className={`border rounded-xl p-4 transition-colors ${
-            grupo.premio_estado.includes('votacion') 
-              ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' 
+            grupo.premio_estado.includes('votacion')
+              ? 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10'
               : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60'
           }`}
         >
-          <div className="flex justify-between items-start gap-4 mb-3">
+          <div className="flex justify-between items-center gap-4 mb-3">
             <h3 className="text-lg font-semibold text-amber-300">{grupo.premio_nombre}</h3>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoColor(grupo.premio_estado)}`}>
-              {getEstadoPremio(grupo.premio_estado)}
-            </span>
           </div>
           
-          <div className="space-y-4">
-            {grupo.nominados.length > 0 ? (
-              <div className="space-y-2">
-                {grupo.nominados.map((nominacion, index) => (
-                  <div 
-                    key={`${nominacion.id}-${index}`}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      nominacion.es_activo 
-                        ? 'bg-amber-500/10 border border-amber-500/20' 
-                        : 'bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-zinc-200">
-                        {getRondaText(nominacion.ronda)}
-                      </span>
-                      {!nominacion.es_activo && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-700/50 text-zinc-400">
-                          Anterior
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs ${nominacion.es_activo ? 'text-amber-400' : 'text-zinc-500'}`}>
-                        {nominacion.fecha}
-                      </span>
-                      {nominacion.es_activo && (
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-zinc-500 text-sm">
-                No hay nominaciones registradas para este premio.
-              </div>
+          <div className="flex items-center gap-2">
+            {grupo.nominados.some(n => n.ronda === 1) && (
+              <span className="px-3 py-1 text-xs font-medium rounded-full border bg-blue-900/30 text-blue-300 border-blue-700/40">
+                R1
+              </span>
             )}
+            {grupo.nominados.some(n => n.ronda === 2) && (grupo.premio_ronda_actual >= 2 || ['votacion_2', 'finalizado'].includes(grupo.premio_estado)) && (
+              <span className="px-3 py-1 text-xs font-medium rounded-full border bg-purple-900/30 text-purple-300 border-purple-700/40">
+                R2
+              </span>
+            )}
+            {(() => {
+              // Mostrar chip Ganador (solo Oro) si esta nominación ganó y los resultados son públicos
+              const esGanadorOro = grupo.nominados.some(n => winnerMap[n.id] === 'oro');
+              if (!esGanadorOro) return null;
+              return (
+                <span className="px-3 py-1 text-xs font-medium rounded-full border bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                  Ganador
+                </span>
+              );
+            })()}
           </div>
         </div>
       ))}
@@ -205,6 +186,7 @@ export default function PerfilPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [cldReady, setCldReady] = useState(false);
+  const [winnerMap, setWinnerMap] = useState<Record<string, 'oro' | 'plata' | 'bronce'>>({});
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -274,6 +256,22 @@ export default function PerfilPage() {
         premios_activos: statsData.premios_activos || 0,
         premios_finalizados: statsData.premios_finalizados || 0
       });
+
+      // Cargar resultados públicos (sin spoilers: solo habrá datos si hay publicados)
+      try {
+        const pubRes = await axiosInstance.get('api/resultados-publicos/');
+        const map: Record<string, 'oro' | 'plata' | 'bronce'> = {};
+        const arr = Array.isArray(pubRes.data) ? pubRes.data : [];
+        for (const r of arr) {
+          if (r?.ganador_oro?.id) map[r.ganador_oro.id] = 'oro';
+          if (r?.ganador_plata?.id) map[r.ganador_plata.id] = 'plata';
+          if (r?.ganador_bronce?.id) map[r.ganador_bronce.id] = 'bronce';
+        }
+        setWinnerMap(map);
+      } catch (_e) {
+        // Silenciar errores: si no hay resultados públicos aún o endpoint restringido
+        setWinnerMap({});
+      }
     } catch (err) {
       console.error('Error fetching user data:', err);
       setError('Error al cargar la información del usuario');
@@ -516,7 +514,7 @@ export default function PerfilPage() {
                 </button>
               </div>
             ) : (
-              <NominationsList nominaciones={nominaciones} />
+              <NominationsList nominaciones={nominaciones} winnerMap={winnerMap} />
             )}
           </div>
         </div>

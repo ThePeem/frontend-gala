@@ -387,53 +387,41 @@ export default function AdminResultadosPage() {
                   : 'Los resultados aún no son públicos'}
               </p>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                {resultadosVista.map((r) => (
-                  <div key={r.id} className="border border-zinc-800 rounded-lg overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white">
-                      <h3 className="text-lg font-semibold">{r.nombre}</h3>
-                      {r.descripcion && <p className="text-sm text-blue-100 mt-1">{r.descripcion}</p>}
-                      <div className="mt-2 text-xs text-blue-200">{r.total_votos} votos • {r.porcentaje_participacion}% participación</div>
+                {resultadosVista.map((r) => {
+                  const items = [
+                    r.ganador_oro ? { pos: 1, nombre: r.ganador_oro.nombre, valor: r.ganador_oro.votos } : null,
+                    r.ganador_plata ? { pos: 2, nombre: r.ganador_plata.nombre, valor: r.ganador_plata.votos } : null,
+                    r.ganador_bronce ? { pos: 3, nombre: r.ganador_bronce.nombre, valor: r.ganador_bronce.votos } : null,
+                  ].filter(Boolean) as Array<{ pos: number; nombre: string; valor: number }>;
+                  const etiquetaValor = (valor: number) => (faseActual === 'votacion_2' || faseActual === 'finalizado') ? `${valor} pts` : `${valor} votos`;
+                  return (
+                    <div key={r.id} className="border border-zinc-800 rounded-lg overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white">
+                        <h3 className="text-lg font-semibold">{r.nombre}</h3>
+                        {r.descripcion && <p className="text-sm text-blue-100 mt-1">{r.descripcion}</p>}
+                      </div>
+                      <div className="p-4">
+                        {items.length > 0 ? (
+                          <ul className="space-y-2">
+                            {items.slice(0, 5).map((it) => (
+                              <li key={`${r.id}-${it.pos}`} className="flex items-center gap-3 p-2 rounded border border-zinc-800 bg-zinc-900/40">
+                                <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-white font-bold ${
+                                  it.pos === 1 ? 'bg-yellow-500' : it.pos === 2 ? 'bg-zinc-400' : 'bg-amber-600'
+                                }`}>{it.pos}</div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-zinc-100 truncate">{it.nombre}</p>
+                                </div>
+                                <div className="text-xs text-zinc-400 whitespace-nowrap">{etiquetaValor(it.valor)}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="text-center py-4 text-zinc-500 text-sm">Aún no hay resultados disponibles para este premio.</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="p-4">
-                      {r.ganador_oro && (
-                        <div className="mb-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-600/30">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-yellow-400 flex items-center justify-center text-white font-bold">1</div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium text-yellow-300">{r.ganador_oro.nombre}</p>
-                              <p className="text-xs text-yellow-500">{r.ganador_oro.votos} votos</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {r.ganador_plata && (
-                        <div className="mb-3 p-3 rounded-lg bg-zinc-200/10 border border-zinc-500/30">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-400 flex items-center justify-center text-white font-bold">2</div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium text-zinc-100">{r.ganador_plata.nombre}</p>
-                              <p className="text-xs text-zinc-400">{r.ganador_plata.votos} votos</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {r.ganador_bronce && (
-                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-600/30">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold">3</div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium text-amber-200">{r.ganador_bronce.nombre}</p>
-                              <p className="text-xs text-amber-400">{r.ganador_bronce.votos} votos</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {!r.ganador_oro && !r.ganador_plata && !r.ganador_bronce && (
-                        <div className="text-center py-4 text-zinc-500 text-sm">Aún no hay resultados disponibles para este premio.</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </Card>
