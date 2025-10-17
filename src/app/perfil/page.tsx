@@ -78,31 +78,7 @@ function NominationsList({ nominaciones, winnerMap }: {
     return a.premio_nombre.localeCompare(b.premio_nombre);
   });
 
-  // Función para obtener el texto de la ronda
-  const getRondaText = (ronda: number) => {
-    return ronda === 1 ? 'Ronda de nominación' : 'Ronda final';
-  };
-
-  // Función para obtener el estado del premio
-  const getEstadoPremio = (estado: string) => {
-    switch(estado) {
-      case 'preparacion': return 'En preparación';
-      case 'votacion_1': return 'Ronda 1 en curso';
-      case 'votacion_2': return 'Ronda 2 en curso';
-      case 'finalizado': return 'Finalizado';
-      default: return estado;
-    }
-  };
-
-  // Función para obtener el color del estado
-  const getEstadoColor = (estado: string) => {
-    switch(estado) {
-      case 'votacion_1': return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-      case 'votacion_2': return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
-      case 'finalizado': return 'bg-green-500/20 text-green-300 border-green-500/40';
-      default: return 'bg-zinc-800 text-zinc-300 border-zinc-700';
-    }
-  };
+  // (Funciones auxiliares eliminadas por no usarse)
 
   return (
     <div className="space-y-6">
@@ -268,7 +244,7 @@ export default function PerfilPage() {
           if (r?.ganador_bronce?.id) map[r.ganador_bronce.id] = 'bronce';
         }
         setWinnerMap(map);
-      } catch (_e) {
+      } catch {
         // Silenciar errores: si no hay resultados públicos aún o endpoint restringido
         setWinnerMap({});
       }
