@@ -2,11 +2,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/utils/AuthContext";
+import { RESULTS_PHASE_OVERRIDE_KEY } from "@/hooks/useResultsPhase";
 
 type EstadoFase = 'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado';
 
@@ -62,6 +64,13 @@ export default function AdminResultadosPage() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [accionConfirmar, setAccionConfirmar] = useState<(() => Promise<void>) | null>(null);
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
+  const [phaseOverride, setPhaseOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setPhaseOverride(window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY));
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
