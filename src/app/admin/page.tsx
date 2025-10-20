@@ -1,4 +1,5 @@
 // src/app/admin/page.tsx
+// nada mas
 'use client';
 
 import { useEffect, useState } from 'react';
