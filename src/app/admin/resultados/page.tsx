@@ -64,7 +64,12 @@ export default function AdminResultadosPage() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [accionConfirmar, setAccionConfirmar] = useState<(() => Promise<void>) | null>(null);
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
-  const [phaseVersion, setPhaseVersion] = useState(0);
+  const [phaseOverride, setPhaseOverride] = useState<string>('');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setPhaseOverride(window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY) || '');
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -323,7 +328,7 @@ export default function AdminResultadosPage() {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-2 py-1"
-                    value={(typeof window !== 'undefined' ? (window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY) || '') : '')}
+                    value={phaseOverride}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (typeof window !== 'undefined') {
@@ -332,8 +337,8 @@ export default function AdminResultadosPage() {
                         } else {
                           window.localStorage.setItem(RESULTS_PHASE_OVERRIDE_KEY, val);
                         }
-                        setPhaseVersion(v => v + 1);
                       }
+                      setPhaseOverride(val);
                     }}
                   >
                     <option value="">Automático por fecha</option>
