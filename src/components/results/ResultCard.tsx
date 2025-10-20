@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import Image from 'next/image';
 import NomineeReveal, { Nominee } from './NomineeReveal';
 import WinnerDisplay from './WinnerDisplay';
 
@@ -24,7 +25,7 @@ export default function ResultCard({
       <div className="p-5 bg-gradient-to-r from-zinc-900 to-zinc-800 border-b border-zinc-800">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300 text-xl">
-            {imagen ? <img src={imagen} alt={titulo} className="h-full w-full object-cover rounded-lg" /> : '🏆'}
+            {imagen ? <Image src={imagen} alt={titulo} width={56} height={56} className="h-full w-full object-cover rounded-lg" /> : '🏆'}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-zinc-100">{titulo}</h3>

@@ -1,4 +1,5 @@
 "use client";
+import Image from 'next/image';
 
 export default function WinnerDisplay({ nombre, imagen }: { nombre: string; imagen?: string }) {
   return (
@@ -7,7 +8,7 @@ export default function WinnerDisplay({ nombre, imagen }: { nombre: string; imag
       <div className="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-5 text-center backdrop-blur-sm">
         <div className="aspect-square rounded-xl bg-yellow-400/10 border border-yellow-500/40 flex items-center justify-center">
           {imagen ? (
-            <img src={imagen} alt={nombre} className="w-full h-full object-cover rounded-xl" />
+            <Image src={imagen} alt={nombre} width={400} height={400} className="w-full h-full object-cover rounded-xl" />
           ) : (
             <span className="text-6xl text-yellow-300 font-extrabold">★</span>
           )}

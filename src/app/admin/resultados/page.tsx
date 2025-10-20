@@ -64,13 +64,7 @@ export default function AdminResultadosPage() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [accionConfirmar, setAccionConfirmar] = useState<(() => Promise<void>) | null>(null);
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
-  const [phaseOverride, setPhaseOverride] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setPhaseOverride(window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY));
-    }
-  }, []);
+  const [phaseVersion, setPhaseVersion] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -323,6 +317,33 @@ export default function AdminResultadosPage() {
                 >
                   {publicando ? 'Publicando...' : 'Publicar resultados'}
                 </Button>
+              </div>
+              <div className="mt-5 border-t border-zinc-800 pt-4">
+                <div className="text-sm text-zinc-400 mb-2">Vista Resultados (debug sin backend):</div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-2 py-1"
+                    value={(typeof window !== 'undefined' ? (window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY) || '') : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (typeof window !== 'undefined') {
+                        if (!val) {
+                          window.localStorage.removeItem(RESULTS_PHASE_OVERRIDE_KEY);
+                        } else {
+                          window.localStorage.setItem(RESULTS_PHASE_OVERRIDE_KEY, val);
+                        }
+                        setPhaseVersion(v => v + 1);
+                      }
+                    }}
+                  >
+                    <option value="">Automático por fecha</option>
+                    <option value="pre">PRE_GALA</option>
+                    <option value="live">LIVE</option>
+                    <option value="post">POST_GALA</option>
+                  </select>
+                  <Button variant="ghost" onClick={() => window.open('/resultados', '_blank')}>Abrir /resultados</Button>
+                </div>
+                <p className="mt-1 text-[11px] text-zinc-500">Este selector guarda preferencia en localStorage y afecta solo a tu navegador.</p>
               </div>
               <div className="mt-3">
                 <Button
