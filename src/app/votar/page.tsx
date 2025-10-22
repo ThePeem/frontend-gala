@@ -73,12 +73,6 @@ export default function VotarIndexPage() {
     setModalError(null);
     setModalSuccess(null);
     setModalLoading(true);
-    // Si no hay token, no intentamos cargar y mostramos CTA de login
-    if (!token) {
-      setModalLoading(false);
-      setModalError('Debes iniciar sesión para votar.');
-      return;
-    }
     try {
       const data = await apiFetch<PremioDetalle>(`/api/premios/${id}/`, {}, token || undefined);
       let detalleLocal = data;
@@ -98,10 +92,9 @@ export default function VotarIndexPage() {
         }
       }
       setDetalle(detalleLocal);
-      // Precargar votos previos
-      if (token) {
-        try {
-          const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token);
+      // Precargar votos previos (si hay sesión por token o cookie)
+      try {
+        const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
           const vp = Array.isArray(prev) ? prev.find((v) => v.premio === id) : null;
           if (vp) {
             if (data.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
@@ -117,12 +110,11 @@ export default function VotarIndexPage() {
               setPodium(np);
             }
           }
-        } catch {
-          // Silencioso: si falla, no bloquea el modal
-          console.warn('No se pudieron cargar votos previos');
-        }
+      } catch {
+        // Silencioso: si falla, no bloquea el modal
+        console.warn('No se pudieron cargar votos previos');
       }
-    } catch {
+    } catch (err) {
       setModalError('No se pudo cargar el premio');
     } finally {
       setModalLoading(false);
@@ -238,11 +230,7 @@ export default function VotarIndexPage() {
             {modalError && <div className="text-red-400 text-sm">{modalError}</div>}
             {modalSuccess && <div className="text-green-400 text-sm">{modalSuccess}</div>}
 
-            {!token && (
-              <div className="rounded border border-blue-400/30 bg-blue-900/20 text-blue-200 text-sm p-3">
-                Debes iniciar sesión para votar. <Link href="/login" className="underline">Ir a iniciar sesión</Link>
-              </div>
-            )}
+            {/* Mensajes de error se muestran arriba; no bloquear por falta de token ya que puede haber sesión por cookie */}
 
             {detalle.ronda_actual === 1 ? (
               <div>
@@ -312,7 +300,7 @@ export default function VotarIndexPage() {
 
             <div className="pt-2 flex justify-end gap-2">
               <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-              <Button onClick={submitVotes} disabled={sending || !token}>
+              <Button onClick={submitVotes} disabled={sending}>
                 {sending ? 'Enviando…' : 'Confirmar voto'}
               </Button>
             </div>
