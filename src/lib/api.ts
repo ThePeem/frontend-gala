@@ -18,10 +18,20 @@ export async function apiFetch<T = unknown>(
   console.log(`[apiFetch] Making request to: ${url}`);
   console.log(`[apiFetch] Using API_BASE: ${API_BASE}`);
 
+  // Intenta recuperar token del almacenamiento del navegador si no se proporciona explícitamente
+  let tokenToUse = authToken ?? null;
+  try {
+    if (!tokenToUse && typeof window !== 'undefined') {
+      tokenToUse = (localStorage.getItem('authToken') || localStorage.getItem('token')) as string | null;
+    }
+  } catch {
+    // Ignorar si localStorage no está disponible
+  }
+
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
-    ...(authToken ? { Authorization: `Token ${authToken}` } : {}),
+    ...(tokenToUse ? { Authorization: `Token ${tokenToUse}` } : {}),
   };
 
   try {
