@@ -19,6 +19,8 @@ interface Premio {
   descripcion: string | null;
   estado: 'preparacion' | 'votacion_1' | 'votacion_2' | 'finalizado';
   ronda_actual: number;
+  slug?: string | null;
+  image_url?: string | null;
 }
 
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
@@ -45,7 +47,7 @@ export default function VotarIndexPage() {
   useEffect(() => {
     const fetchPremios = async () => {
       try {
-        const data = await apiFetch<Premio[]>("/api/premios/");
+        const data = await apiFetch<Premio[]>("/api/premios-todos/");
         setPremios(data);
       } catch (e) {
         console.error(e);
@@ -70,6 +72,12 @@ export default function VotarIndexPage() {
     setModalError(null);
     setModalSuccess(null);
     setModalLoading(true);
+    // Si no hay token, no intentamos cargar y mostramos CTA de login
+    if (!token) {
+      setModalLoading(false);
+      setModalError('Debes iniciar sesión para votar.');
+      return;
+    }
     try {
       const data = await apiFetch<PremioDetalle>(`/api/premios/${id}/`, {}, token || undefined);
       setDetalle(data);
@@ -187,6 +195,8 @@ export default function VotarIndexPage() {
                 descripcion: premio.descripcion,
                 estado: premio.estado,
                 ronda_actual: premio.ronda_actual,
+                slug: premio.slug ?? null,
+                image_url: premio.image_url ?? null,
               };
               return (
                 <AwardCard
@@ -204,7 +214,7 @@ export default function VotarIndexPage() {
       <Footer />
 
       {/* Modal de votación */}
-      <Modal open={!!openedId} onClose={closeModal} title={detalle ? `${detalle.nombre} • ${detalle.ronda_actual === 2 ? 'Final' : 'Ronda 1'}` : 'Cargando premio…'}>
+      <Modal open={!!openedId} onClose={closeModal} title={detalle ? `${detalle.nombre} • ${detalle.ronda_actual === 2 ? 'Final' : 'Ronda 1'}` : (modalError ? 'Votación' : 'Cargando premio…')}>
         {modalLoading && <div className="text-zinc-400 py-6">Cargando premio…</div>}
         {!modalLoading && detalle && (
           <div className="space-y-4">
