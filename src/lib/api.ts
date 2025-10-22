@@ -32,29 +32,24 @@ export async function apiFetch<T = unknown>(
     });
 
     console.log(`[apiFetch] Response status: ${res.status} ${res.statusText}`);
+    
+    // Leer cuerpo una única vez para evitar "body stream already read"
+    const raw = res.status === 204 ? '' : await res.text();
 
-    // Respuestas sin contenido
-    if (res.status === 204) return null as T;
-
-    // Manejo de error con detalle legible
     if (!res.ok) {
-      let errorDetails = '';
+      let errorDetails = raw;
       try {
-        const errorData = await res.json();
-        errorDetails = JSON.stringify(errorData);
+        errorDetails = raw ? JSON.stringify(JSON.parse(raw)) : '';
       } catch {
-        const text = await res.text();
-        errorDetails = text || 'No se pudo obtener detalles del error';
+        // mantener raw tal cual si no es JSON
       }
-      
-      const error = new Error(`Error ${res.status} ${res.statusText} → ${errorDetails}`);
+      const error = new Error(`Error ${res.status} ${res.statusText}${errorDetails ? ' → ' + errorDetails : ''}`);
       console.error('[apiFetch] API Error:', error);
       throw error;
     }
 
     // Procesar la respuesta exitosa
-    const txt = await res.text();
-    const data = txt ? JSON.parse(txt) : null;
+    const data = (raw ? JSON.parse(raw) : null) as T;
     console.log('[apiFetch] Response data:', data);
     return data;
   } catch (error) {

@@ -21,6 +21,7 @@ interface Premio {
   ronda_actual: number;
   slug?: string | null;
   image_url?: string | null;
+  nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>;
 }
 
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
@@ -74,33 +75,71 @@ export default function VotarIndexPage() {
     setModalSuccess(null);
     setModalLoading(true);
     try {
-      const data = await apiFetch<PremioDetalle>(`/api/premios/${id}/`, {}, token || undefined);
-      let detalleLocal = data;
-      // Fallback: si no vienen nominados en detalle (p.ej. permisos), usa nominados_visible del listado público
-      if ((!detalleLocal.nominados || detalleLocal.nominados.length === 0) && detalleLocal.ronda_actual === 1) {
+      // 1) Construir detalle desde el listado ya cargado (tiene nominados_visible)
+      const base = premios.find(p => p.id === id);
+      let detalleLocal: PremioDetalle | null = base ? {
+        id: base.id,
+        nombre: base.nombre,
+        descripcion: base.descripcion,
+        estado: base.estado,
+        ronda_actual: base.ronda_actual,
+        slug: base.slug,
+        image_url: base.image_url,
+        nominados: (base.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
+        max_votos_ronda1: 4,
+        tipo: 'individual'
+      } : null;
+
+      // 2) Si hay token, intentar enriquecer con el detalle privado (puede incluir campos extra)
+      if (token) {
         try {
-          const listado = await apiFetch<PremioListado[]>(`/api/premios-todos/`);
-          const match = Array.isArray(listado) ? listado.find(p => p.id === id) : undefined;
-          if (match?.nominados_visible && match.nominados_visible.length > 0) {
+          const dataPriv = await apiFetch<PremioDetalle>(`/api/premios/${id}/`, {}, token);
+          // Si devuelve nominados, usa los del privado. Si no, conserva los visibles del listado
+          if (dataPriv) {
             detalleLocal = {
-              ...detalleLocal,
-              nominados: match.nominados_visible.map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen } as NominadoDetalle)),
+              ...dataPriv,
+              nominados: (dataPriv.nominados && dataPriv.nominados.length > 0)
+                ? dataPriv.nominados
+                : (detalleLocal?.nominados || []),
             };
           }
         } catch {
-          // ignora fallo de fallback
+          // si falla, continuamos con los datos del listado
         }
       }
+
+      // 3) Si aún no tenemos detalleLocal (no estaba en el listado), pedirlo al listado público
+      if (!detalleLocal) {
+        try {
+          const listado = await apiFetch<PremioListado[]>(`/api/premios-todos/`);
+          const match = Array.isArray(listado) ? listado.find(p => p.id === id) : undefined;
+          if (match) {
+            detalleLocal = {
+              id: match.id,
+              nombre: base?.nombre || 'Premio',
+              descripcion: base?.descripcion || null,
+              estado: base?.estado || 'preparacion',
+              ronda_actual: base?.ronda_actual || 1,
+              nominados: (match.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
+              max_votos_ronda1: 4,
+              tipo: 'individual'
+            } as PremioDetalle;
+          }
+        } catch {}
+      }
+
+      if (!detalleLocal) throw new Error('No se pudo cargar el premio');
+
       setDetalle(detalleLocal);
       // Precargar votos previos (si hay sesión por token o cookie)
       try {
         const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
-          const vp = Array.isArray(prev) ? prev.find((v) => v.premio === id) : null;
-          if (vp) {
-            if (data.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
+        const vp = Array.isArray(prev) ? prev.find((v) => v.premio === id) : null;
+        if (vp) {
+            if (detalleLocal.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
               setSel(vp.ronda_1.map((x) => x.nominado?.id).filter(Boolean));
             }
-            if (data.ronda_actual === 2 && Array.isArray(vp.ronda_2)) {
+            if (detalleLocal.ronda_actual === 2 && Array.isArray(vp.ronda_2)) {
               const np: { oro?: string; plata?: string; bronce?: string } = {};
               vp.ronda_2.forEach((x) => {
                 if (x.orden === 1) np.oro = x.nominado?.id;
