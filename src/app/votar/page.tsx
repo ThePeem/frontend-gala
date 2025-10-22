@@ -203,8 +203,11 @@ export default function VotarIndexPage() {
         setSending(false);
         return;
       }
-      await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(votos) }, token || undefined);
-      setModalSuccess('¡Voto registrado!');
+      // Enviamos un POST por cada voto (el backend espera un diccionario, no una lista)
+      for (const v of votos) {
+        await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
+      }
+      setModalSuccess('¡Voto(s) registrado(s)!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al enviar el voto';
       setModalError(msg);
