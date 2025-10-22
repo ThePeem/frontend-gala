@@ -114,7 +114,7 @@ export default function VotarIndexPage() {
         // Silencioso: si falla, no bloquea el modal
         console.warn('No se pudieron cargar votos previos');
       }
-    } catch (err) {
+    } catch {
       setModalError('No se pudo cargar el premio');
     } finally {
       setModalLoading(false);
