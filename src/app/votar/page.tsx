@@ -24,6 +24,9 @@ interface Premio {
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
 interface NominadoDetalle { id: string; nombre: string; descripcion: string | null; imagen: string | null; usuarios_vinculados_detalles?: UsuarioMini[] }
 interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos_ronda1?: number; tipo?: 'individual' | 'grupal'; }
+interface MisVotoR1Item { nominado: { id: string } }
+interface MisVotoR2Item { orden: number; nominado: { id: string } }
+interface MisVotoPremio { premio: string; ronda_1?: MisVotoR1Item[]; ronda_2?: MisVotoR2Item[] }
 
 export default function VotarIndexPage() {
   const { token } = useAuth() as { token?: string | null };
@@ -73,15 +76,15 @@ export default function VotarIndexPage() {
       // Precargar votos previos
       if (token) {
         try {
-          const prev = await apiFetch<any>(`/api/mis-votos/`, {}, token);
-          const vp = Array.isArray(prev) ? prev.find((v: any) => v.premio === id) : null;
+          const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token);
+          const vp = Array.isArray(prev) ? prev.find((v) => v.premio === id) : null;
           if (vp) {
             if (data.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
-              setSel(vp.ronda_1.map((x: any) => x.nominado?.id).filter(Boolean));
+              setSel(vp.ronda_1.map((x) => x.nominado?.id).filter(Boolean));
             }
             if (data.ronda_actual === 2 && Array.isArray(vp.ronda_2)) {
               const np: { oro?: string; plata?: string; bronce?: string } = {};
-              vp.ronda_2.forEach((x: any) => {
+              vp.ronda_2.forEach((x) => {
                 if (x.orden === 1) np.oro = x.nominado?.id;
                 if (x.orden === 2) np.plata = x.nominado?.id;
                 if (x.orden === 3) np.bronce = x.nominado?.id;
@@ -89,12 +92,12 @@ export default function VotarIndexPage() {
               setPodium(np);
             }
           }
-        } catch (e) {
+        } catch {
           // Silencioso: si falla, no bloquea el modal
           console.warn('No se pudieron cargar votos previos');
         }
       }
-    } catch (e) {
+    } catch {
       setModalError('No se pudo cargar el premio');
     } finally {
       setModalLoading(false);
@@ -146,8 +149,9 @@ export default function VotarIndexPage() {
       }
       await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(votos) }, token || undefined);
       setModalSuccess('¡Voto registrado!');
-    } catch (e: any) {
-      setModalError(e?.message || 'Error al enviar el voto');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al enviar el voto';
+      setModalError(msg);
     } finally {
       setSending(false);
     }
