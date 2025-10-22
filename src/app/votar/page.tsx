@@ -29,6 +29,7 @@ interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos
 interface MisVotoR1Item { nominado: { id: string } }
 interface MisVotoR2Item { orden: number; nominado: { id: string } }
 interface MisVotoPremio { premio: string; ronda_1?: MisVotoR1Item[]; ronda_2?: MisVotoR2Item[] }
+interface PremioListado { id: string; nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>; }
 
 export default function VotarIndexPage() {
   const { token } = useAuth() as { token?: string | null };
@@ -80,7 +81,23 @@ export default function VotarIndexPage() {
     }
     try {
       const data = await apiFetch<PremioDetalle>(`/api/premios/${id}/`, {}, token || undefined);
-      setDetalle(data);
+      let detalleLocal = data;
+      // Fallback: si no vienen nominados en detalle (p.ej. permisos), usa nominados_visible del listado público
+      if ((!detalleLocal.nominados || detalleLocal.nominados.length === 0) && detalleLocal.ronda_actual === 1) {
+        try {
+          const listado = await apiFetch<PremioListado[]>(`/api/premios-todos/`);
+          const match = Array.isArray(listado) ? listado.find(p => p.id === id) : undefined;
+          if (match?.nominados_visible && match.nominados_visible.length > 0) {
+            detalleLocal = {
+              ...detalleLocal,
+              nominados: match.nominados_visible.map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen } as NominadoDetalle)),
+            };
+          }
+        } catch {
+          // ignora fallo de fallback
+        }
+      }
+      setDetalle(detalleLocal);
       // Precargar votos previos
       if (token) {
         try {
@@ -230,7 +247,10 @@ export default function VotarIndexPage() {
             {detalle.ronda_actual === 1 ? (
               <div>
                 <div className="text-xs text-zinc-400 mb-2">Selecciona hasta {detalle.max_votos_ronda1 || 4}</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {detalle.nominados.length === 0 ? (
+                  <div className="text-zinc-400 text-sm">No hay nominados disponibles para este premio.</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {detalle.nominados.map(n => (
                     <button
                       key={n.id}
@@ -249,14 +269,15 @@ export default function VotarIndexPage() {
                       </div>
                     </button>
                   ))}
-                </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
-                <div className="text-xs text-zinc-400 mb-2">Asigna Oro, Plata y Bronce</div>
+                <div className="text-xs text-zinc-400 mb-2">Asigna Oro, Plata y Bronce entre los finalistas</div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    {detalle.nominados.map(n => (
+                    {detalle.nominados.slice(0,5).map(n => (
                       <button
                         key={n.id}
                         onClick={() => assignPodium(n.id)}
@@ -295,6 +316,18 @@ export default function VotarIndexPage() {
                 {sending ? 'Enviando…' : 'Confirmar voto'}
               </Button>
             </div>
+          </div>
+        )}
+        {!modalLoading && !detalle && (
+          <div className="space-y-3">
+            {modalError && (
+              <div className="rounded border border-red-400/30 bg-red-900/20 text-red-200 text-sm p-3">{modalError}</div>
+            )}
+            {!token && (
+              <div className="rounded border border-blue-400/30 bg-blue-900/20 text-blue-200 text-sm p-3">
+                Debes iniciar sesión para votar. <Link href="/login" className="underline">Ir a iniciar sesión</Link>
+              </div>
+            )}
           </div>
         )}
       </Modal>
