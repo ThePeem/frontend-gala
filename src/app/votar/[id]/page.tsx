@@ -320,7 +320,7 @@ export default function VotarPage() {
 
   // Verificar estado del voto
   const verificarEstadoVoto = useCallback(async () => {
-    if (!premioId || !token) return;
+    if (!premioId || !token) return null;
     
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verificar-voto/${premioId}/`, {
@@ -349,8 +349,12 @@ export default function VotarPage() {
 
   // Cargar datos del premio
   const fetchPremio = useCallback(async () => {
-    if (!token) return;
-    
+    if (!token) {
+      // Evita quedar en estado de carga infinito si no hay token todavía
+      setLoadingPremio(false);
+      return;
+    }
+
     try {
       setLoadingPremio(true);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/premios/${premioId}/`, {

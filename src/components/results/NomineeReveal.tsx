@@ -26,6 +26,10 @@ export default function NomineeReveal({ nominees, onFinishedElimination }: {
     setTimeout(() => {
       setLeft((prev) => prev.filter(n => n.id !== nxt.id));
       setQueue((prev) => prev.slice(1));
+      // Si antes de eliminar quedaban 2 (queue.length === 1), tras eliminar queda 1 => mostrar ganador automáticamente
+      if (queue.length === 1) {
+        onFinishedElimination?.();
+      }
     }, 700);
   };
 

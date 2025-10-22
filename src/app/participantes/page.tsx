@@ -282,8 +282,13 @@ function RailColumn({
         return (
           <button
             key={p.name}
-            onMouseEnter={() => onSelect(p.name)}
-            onFocus={() => onSelect(p.name)}
+            onClick={() => onSelect(p.name)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(p.name);
+              }
+            }}
             className={`group relative h-28 w-28 overflow-hidden rounded-xl border transition ${active ? "border-amber-400/80" : "border-zinc-800 hover:border-zinc-700"}`}
             aria-label={p.name}
           >
@@ -315,9 +320,13 @@ function MiniGrid({
         return (
           <button
             key={p.name}
-            onMouseEnter={() => onSelect(p.name)}
-            onFocus={() => onSelect(p.name)}
             onClick={() => onSelect(p.name)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(p.name);
+              }
+            }}
             className={`group relative overflow-hidden rounded-2xl border bg-zinc-900/40 transition ${active ? "border-amber-400/70" : "border-zinc-800 hover:border-zinc-700"} h-32`}
           >
             <Image src={p.src} alt={p.name} fill className="object-contain p-2" sizes="160px" unoptimized />

@@ -68,7 +68,7 @@ export default function ResultadosPage() {
         )}
 
         {phase === 'LIVE' && (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-8 grid-cols-1">
             {premiosMock.map((p) => (
               <ResultCard
                 key={p.id}
