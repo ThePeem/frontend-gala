@@ -43,7 +43,6 @@ export default function VotarIndexPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [sel, setSel] = useState<string[]>([]);
   const [podium, setPodium] = useState<{ oro?: string; plata?: string; bronce?: string }>({});
-  const [sending, setSending] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalSuccess, setModalSuccess] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
@@ -460,8 +459,8 @@ export default function VotarIndexPage() {
 
             <div className="pt-2 flex justify-end gap-2">
               <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-              <Button onClick={saveSelection} disabled={sending}>
-                {sending ? 'Guardando…' : (detalle.ronda_actual === 1 ? 'Guardar selección' : 'Confirmar voto')}
+              <Button onClick={saveSelection}>
+                {detalle.ronda_actual === 1 ? 'Guardar selección' : 'Guardar podio'}
               </Button>
             </div>
           </div>
