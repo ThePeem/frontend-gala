@@ -21,12 +21,13 @@ interface Premio {
   ronda_actual: number;
   slug?: string | null;
   image_url?: string | null;
+  tipo?: 'directo' | 'indirecto';
   nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>;
 }
 
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
 interface NominadoDetalle { id: string; nombre: string; descripcion: string | null; imagen: string | null; usuarios_vinculados_detalles?: UsuarioMini[] }
-interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos_ronda1?: number; tipo?: 'individual' | 'grupal'; }
+interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos_ronda1?: number; }
 interface MisVotoR1Item { nominado: { id: string } }
 interface MisVotoR2Item { orden: number; nominado: { id: string } }
 interface MisVotoPremio { premio: string; ronda_1?: MisVotoR1Item[]; ronda_2?: MisVotoR2Item[] }
@@ -45,6 +46,10 @@ export default function VotarIndexPage() {
   const [sending, setSending] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalSuccess, setModalSuccess] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+  // Selecciones guardadas por premio para confirmar todas juntas
+  const [seleccionesGlobales, setSeleccionesGlobales] = useState<Record<string, string[]>>({});
+  const [seleccionesR2, setSeleccionesR2] = useState<Record<string, { oro?: string; plata?: string; bronce?: string }>>({});
 
   useEffect(() => {
     const fetchPremios = async () => {
@@ -60,6 +65,18 @@ export default function VotarIndexPage() {
     };
     fetchPremios();
   }, []);
+
+  // Cargar identidad del usuario para bloquear auto-voto
+  useEffect(() => {
+    const fetchMe = async () => {
+      if (!token) return;
+      try {
+        const me = await apiFetch<{ id: string }>("/api/mi-perfil/", {}, token);
+        if (me?.id) setMeId(me.id);
+      } catch {}
+    };
+    fetchMe();
+  }, [token]);
 
   const ordered = useMemo(() => premios.slice().sort((a,b) => a.nombre.localeCompare(b.nombre)), [premios]);
   const votingStartEnv = process.env.NEXT_PUBLIC_VOTING_START;
@@ -85,9 +102,9 @@ export default function VotarIndexPage() {
         ronda_actual: base.ronda_actual,
         slug: base.slug,
         image_url: base.image_url,
+        tipo: base.tipo,
         nominados: (base.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
         max_votos_ronda1: 4,
-        tipo: 'individual'
       } : null;
 
       // 2) Si hay token, intentar enriquecer con el detalle privado (puede incluir campos extra)
@@ -122,7 +139,6 @@ export default function VotarIndexPage() {
               ronda_actual: base?.ronda_actual || 1,
               nominados: (match.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
               max_votos_ronda1: 4,
-              tipo: 'individual'
             } as PremioDetalle;
           }
         } catch {}
@@ -167,54 +183,143 @@ export default function VotarIndexPage() {
   const toggleNom = (id: string) => {
     if (!detalle) return;
     const max = detalle.max_votos_ronda1 || 4;
+    // Bloquear auto-voto si el nominado está vinculado al usuario
+    const nom = detalle.nominados.find(n => n.id === id);
+    if (meId && nom?.usuarios_vinculados_detalles?.some(u => u.id === meId)) {
+      setModalError('No puedes votarte a ti mismo');
+      return;
+    }
     setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : (prev.length < max ? [...prev, id] : prev));
   };
 
   const assignPodium = (id: string) => {
-    // ciclo oro -> plata -> bronce -> quitar
+    // Bloquear auto-voto también en R2
+    if (detalle) {
+      const nom = detalle.nominados.find(n => n.id === id);
+      if (meId && nom?.usuarios_vinculados_detalles?.some(u => u.id === meId)) {
+        setModalError('No puedes votarte a ti mismo');
+        return;
+      }
+    }
+    // Toggle: si ya está seleccionado en algún slot, quitarlo. Si no, asignar al primer slot libre
     setPodium(prev => {
       const slots: Array<keyof typeof prev> = ['oro','plata','bronce'];
-      // si ya está en algún slot, quítalo
       const newP = { ...prev } as { [k in 'oro'|'plata'|'bronce']?: string };
-      for (const k of slots) if (newP[k] === id) newP[k] = undefined;
-      // pon en el primer slot libre
+      const inSlot = slots.find(k => newP[k] === id);
+      if (inSlot) {
+        newP[inSlot] = undefined;
+        return newP;
+      }
       const free = slots.find(k => !newP[k]);
       if (free) newP[free] = id;
       return newP;
     });
   };
+  const clearPodiumSlot = (slot: 'oro'|'plata'|'bronce') => setPodium(prev => ({ ...prev, [slot]: undefined }));
 
-  const submitVotes = async () => {
+  // Guardar selección local del premio sin enviar todavía
+  const saveSelection = async () => {
     if (!detalle) return;
-    setSending(true);
     setModalError(null);
     setModalSuccess(null);
-    try {
-      const votos: Array<{ premio: string; nominado: string; ronda: number; orden_ronda2?: number }> = [];
-      if (detalle.ronda_actual === 1) {
-        sel.forEach(id => votos.push({ premio: detalle.id, nominado: id, ronda: 1 }));
-      } else {
-        if (podium.oro) votos.push({ premio: detalle.id, nominado: podium.oro, ronda: 2, orden_ronda2: 1 });
-        if (podium.plata) votos.push({ premio: detalle.id, nominado: podium.plata, ronda: 2, orden_ronda2: 2 });
-        if (podium.bronce) votos.push({ premio: detalle.id, nominado: podium.bronce, ronda: 2, orden_ronda2: 3 });
-      }
-      if (votos.length === 0) {
-        setModalError('Selecciona al menos un nominado');
-        setSending(false);
+    if (detalle.ronda_actual === 1) {
+      const max = detalle.max_votos_ronda1 || 4;
+      if (sel.length !== max) {
+        setModalError(`Debes seleccionar exactamente ${max} nominados`);
         return;
       }
-      // Enviamos un POST por cada voto (el backend espera un diccionario, no una lista)
-      for (const v of votos) {
-        await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
+      setSeleccionesGlobales(prev => ({ ...prev, [detalle.id]: sel.slice() }));
+      setModalSuccess('Selección guardada');
+      setTimeout(() => setOpenedId(null), 500);
+    } else {
+      // Guardar R2 (oro, plata, bronce) localmente; confirmar global al final
+      if (!podium.oro || !podium.plata || !podium.bronce) {
+        setModalError('Selecciona Oro, Plata y Bronce');
+        return;
       }
-      setModalSuccess('¡Voto(s) registrado(s)!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al enviar el voto';
-      setModalError(msg);
-    } finally {
-      setSending(false);
+      setSeleccionesR2(prev => ({ ...prev, [detalle.id]: { ...podium } }));
+      setModalSuccess('Selección de podio guardada');
+      setTimeout(() => setOpenedId(null), 500);
     }
   };
+
+  // Enviar todas las selecciones guardadas (R1 y R2)
+  const submitAllSelections = async () => {
+    try {
+      // Validar que todos los premios abiertos cumplan requisitos
+      const abiertosR1 = ordered.filter(p => p.estado === 'votacion_1');
+      for (const p of abiertosR1) {
+        const s = seleccionesGlobales[p.id] || [];
+        if (s.length !== 4) {
+          setError(`Debes votar 4 nominados en "${p.nombre}"`);
+          return;
+        }
+      }
+      const abiertosR2 = ordered.filter(p => p.estado === 'votacion_2');
+      for (const p of abiertosR2) {
+        const pod = seleccionesR2[p.id] || {};
+        if (!pod.oro || !pod.plata || !pod.bronce) {
+          setError(`Debes completar el podio en "${p.nombre}"`);
+          return;
+        }
+      }
+
+      // Enviar R1
+      for (const p of abiertosR1) {
+        const s = seleccionesGlobales[p.id];
+        for (const nomId of s) {
+          await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify({ premio: p.id, nominado: nomId, ronda: 1 }) }, token || undefined);
+        }
+      }
+      // Enviar R2
+      for (const p of abiertosR2) {
+        const pod = seleccionesR2[p.id]!;
+        const votosR2 = [
+          { premio: p.id, nominado: pod.oro, ronda: 2, orden_ronda2: 1 },
+          { premio: p.id, nominado: pod.plata, ronda: 2, orden_ronda2: 2 },
+          { premio: p.id, nominado: pod.bronce, ronda: 2, orden_ronda2: 3 },
+        ];
+        for (const v of votosR2) {
+          await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
+        }
+      }
+      setError(null);
+      alert('¡Votos enviados!');
+    } catch (err: unknown) {
+      setError(mapApiError(err));
+    }
+  };
+
+  // Mapear errores a mensajes concisos
+  function mapApiError(err: unknown): string {
+    if (err instanceof Error) {
+      const m = err.message;
+      const idx = m.indexOf('→');
+      if (idx !== -1) {
+        const json = m.slice(idx + 1).trim();
+        try {
+          const obj = JSON.parse(json);
+          if (obj?.detail) {
+            // Map algunos códigos a mensajes más cortos
+            const shortMap: Record<string, string> = {
+              self_vote_forbidden: 'No puedes votarte a ti mismo',
+              already_voted_nominado_r1: 'Ya has votado por este premio',
+              already_voted_nominado_r2: 'Ya has votado por este premio',
+              max_votes_r1_reached: 'Ya has usado tus 4 votos',
+              max_votes_r2_reached: 'Ya has usado tus 3 votos',
+              position_already_used: 'Esa posición ya está usada',
+              missing_order_r2: 'Falta seleccionar el podio',
+            };
+            if (obj.code && shortMap[obj.code]) return shortMap[obj.code];
+            // fallback al detail en claro
+            if (typeof obj.detail === 'string') return obj.detail;
+          }
+        } catch {}
+      }
+      return 'Error al enviar el voto';
+    }
+    return 'Error al enviar el voto';
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b]">
@@ -276,7 +381,7 @@ export default function VotarIndexPage() {
 
             {detalle.ronda_actual === 1 ? (
               <div>
-                <div className="text-xs text-zinc-400 mb-2">Selecciona hasta {detalle.max_votos_ronda1 || 4}</div>
+                <div className="text-xs text-zinc-400 mb-2">Selecciona exactamente {detalle.max_votos_ronda1 || 4}</div>
                 {detalle.nominados.length === 0 ? (
                   <div className="text-zinc-400 text-sm">No hay nominados disponibles para este premio.</div>
                 ) : (
@@ -285,16 +390,25 @@ export default function VotarIndexPage() {
                     <button
                       key={n.id}
                       onClick={() => toggleNom(n.id)}
-                      className={`text-left rounded-lg border p-3 ${sel.includes(n.id) ? 'border-amber-500/60 bg-amber-900/20' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'}`}
+                      className={`text-left rounded-lg border p-3 ${sel.includes(n.id) ? 'border-amber-500/60 bg-amber-900/20' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'} ${meId && n.usuarios_vinculados_detalles?.some(u => u.id === meId) ? 'opacity-50 pointer-events-none' : ''}`}
                       aria-pressed={sel.includes(n.id)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800">
-                          {n.imagen ? <Image src={n.imagen} alt={n.nombre} fill className="object-cover" unoptimized /> : null}
+                          {(() => {
+                            const owner = (n.usuarios_vinculados_detalles || [])[0];
+                            const img = n.imagen || owner?.foto_url || owner?.foto_perfil || '';
+                            return img ? <Image src={img} alt={n.nombre} fill className="object-cover" unoptimized /> : null;
+                          })()}
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm text-zinc-100 truncate">{n.nombre}</div>
-                          {n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
+                          {detalle.tipo === 'indirecto' && n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
+                          {detalle.tipo === 'indirecto' && (() => {
+                            const owner = (n.usuarios_vinculados_detalles || [])[0];
+                            const ownerName = owner?.first_name || owner?.username;
+                            return ownerName ? <div className="text-[11px] text-cyan-300">de {ownerName}</div> : null;
+                          })()}
                         </div>
                       </div>
                     </button>
@@ -316,11 +430,15 @@ export default function VotarIndexPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800">
-                            {n.imagen ? <Image src={n.imagen} alt={n.nombre} fill className="object-cover" unoptimized /> : null}
+                            {(() => {
+                              const owner = (n.usuarios_vinculados_detalles || [])[0];
+                              const img = n.imagen || owner?.foto_url || owner?.foto_perfil || '';
+                              return img ? <Image src={img} alt={n.nombre} fill className="object-cover" unoptimized /> : null;
+                            })()}
                           </div>
                           <div className="min-w-0">
                             <div className="text-sm text-zinc-100 truncate">{n.nombre}</div>
-                            {n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
+                            {detalle.tipo === 'indirecto' && n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
                           </div>
                         </div>
                       </button>
@@ -330,9 +448,9 @@ export default function VotarIndexPage() {
                     <div className="rounded-lg border border-yellow-400/40 p-3">
                       <div className="text-yellow-300 text-sm font-semibold mb-2">Podio</div>
                       <div className="space-y-2 text-sm">
-                        <div>🥇 Oro: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.oro)?.nombre || '—'}</span></div>
-                        <div>🥈 Plata: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.plata)?.nombre || '—'}</span></div>
-                        <div>🥉 Bronce: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.bronce)?.nombre || '—'}</span></div>
+                        <div>🥇 Oro: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.oro)?.nombre || '—'}</span> {podium.oro && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('oro')}>Quitar</button>)}</div>
+                        <div>🥈 Plata: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.plata)?.nombre || '—'}</span> {podium.plata && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('plata')}>Quitar</button>)}</div>
+                        <div>🥉 Bronce: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.bronce)?.nombre || '—'}</span> {podium.bronce && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('bronce')}>Quitar</button>)}</div>
                       </div>
                     </div>
                   </div>
@@ -342,8 +460,8 @@ export default function VotarIndexPage() {
 
             <div className="pt-2 flex justify-end gap-2">
               <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-              <Button onClick={submitVotes} disabled={sending}>
-                {sending ? 'Enviando…' : 'Confirmar voto'}
+              <Button onClick={saveSelection} disabled={sending}>
+                {sending ? 'Guardando…' : (detalle.ronda_actual === 1 ? 'Guardar selección' : 'Confirmar voto')}
               </Button>
             </div>
           </div>
@@ -361,6 +479,21 @@ export default function VotarIndexPage() {
           </div>
         )}
       </Modal>
+      {/* Barra final para confirmar todos (R1) */}
+      {hayAbiertos && (
+        <div className="sticky bottom-0 z-20 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center gap-3 justify-between">
+            <div className="text-sm text-zinc-400 w-full">
+              Ronda 1: selecciona 4 nominados en cada premio. Ronda 2: completa el podio (Oro, Plata, Bronce). Luego pulsa confirmar para enviar todos los votos.
+            </div>
+            <div className="shrink-0">
+              <Button onClick={submitAllSelections}>
+                Confirmar todos los votos
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

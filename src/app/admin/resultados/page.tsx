@@ -97,7 +97,7 @@ export default function AdminResultadosPage() {
   useEffect(() => {
     if (!loading && isAuthenticated) {
       fetchData();
-      const interval = setInterval(fetchData, 30000); // Actualizar cada 30 segundos
+      const interval = setInterval(fetchData, 5000); // Actualizar cada 5 segundos para barras de participación más vivas
       return () => clearInterval(interval);
     }
   }, [loading, isAuthenticated, fetchData]);
@@ -402,7 +402,7 @@ export default function AdminResultadosPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2 align-top">
-                          <span className="px-2 py-1 text-xs rounded-full border border-zinc-700 text-zinc-300">Ronda {p.ronda_actual}</span>
+                          <span className="px-2 py-1 text-xs rounded-full border border-zinc-700 text-zinc-300 whitespace-nowrap">Ronda {p.ronda_actual}</span>
                         </td>
                         <td className="px-4 py-2 align-top">
                           <div className="w-40 bg-zinc-800 rounded-full h-2.5">
