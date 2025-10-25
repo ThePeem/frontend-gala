@@ -472,122 +472,23 @@ export default function VotarIndexPage() {
             {modalLoading ? (
               <div className="text-zinc-400 py-6 text-center">Cargando premio…</div>
             ) : detalle ? (
-              <div className="p-1">
-                {!votingStart ? (
-                  <div className="text-center text-zinc-400">Las votaciones comenzarán pronto</div>
-                ) : votingStart > new Date() ? (
-                  <div className="text-center">
-                    <div className="text-zinc-400 mb-4">Las votaciones comienzan en:</div>
-                    <Countdown target={votingStart} />
-                  </div>
-                ) : detalle.ronda_actual === 1 ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-zinc-400 mb-3">
-                    Selecciona hasta {detalle.max_votos_ronda1 || 4} nominados
-                  </p>
-                  <div className="space-y-2">
-                    {detalle.nominados.map((n) => (
-                      <button
-                        key={n.id}
-                        onClick={() => toggleNom(n.id)}
-                        className={`w-full text-left rounded-lg p-3 ${
-                          sel.includes(n.id)
-                            ? 'bg-amber-500/10 border border-amber-500/30'
-                            : 'hover:bg-zinc-800/50 border border-transparent'
-                        }`}
-                        aria-pressed={sel.includes(n.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
-                            {(() => {
-                              const owner = (n.usuarios_vinculados_detalles || [])[0];
-                              const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
-                              if (img) {
-                                return (
-                                  <Image 
-                                    src={img} 
-                                    alt={n.nombre} 
-                                    width={40} 
-                                    height={40} 
-                                    className="object-cover w-full h-full" 
-                                    unoptimized 
-                                  />
-                                );
-                              }
-                              return (
-                                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
-                                  {n.nombre.charAt(0).toUpperCase()}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-zinc-100 truncate">{n.nombre}</div>
-                            {detalle.tipo === 'indirecto' && n.descripcion && (
-                              <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
-                            )}
-                            {detalle.tipo === 'indirecto' && (() => {
-                              const owner = (n.usuarios_vinculados_detalles || [])[0];
-                              const ownerName = owner?.first_name || owner?.username;
-                              return ownerName ? (
-                                <div className="text-xs text-cyan-400 mt-0.5">de {ownerName}</div>
-                              ) : null;
-                            })()}
-                          </div>
-                          {sel.includes(n.id) && (
-                            <div className="ml-2 text-amber-500">
-                              <svg 
-                                xmlns="http://www.w3.org/2000/svg" 
-                                width="20" 
-                                height="20" 
-                                viewBox="0 0 24 24" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                strokeWidth="2" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round"
-                              >
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between items-center">
-                    <div className="text-sm text-zinc-400">
-                      {sel.length} de {detalle.max_votos_ronda1 || 4} seleccionados
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-                      <Button 
-                        onClick={saveSelection}
-                        disabled={sel.length !== (detalle.max_votos_ronda1 || 4)}
-                        className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white"
-                      >
-                        Guardar selección
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-zinc-400">Asigna Oro, Plata y Bronce entre los finalistas</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              detalle.ronda_actual === 1 ? (
+                <div className="p-1">
+                  <div className="space-y-3">
+                    <p className="text-sm text-zinc-400 mb-3">
+                      Selecciona hasta {detalle.max_votos_ronda1 || 4} nominados
+                    </p>
                     <div className="space-y-2">
-                      {detalle.nominados.slice(0, 5).map((n) => (
+                      {detalle.nominados.map((n) => (
                         <button
                           key={n.id}
-                          onClick={() => assignPodium(n.id)}
-                          className={`w-full text-left rounded-lg p-3 border ${
-                            Object.values(podium).includes(n.id)
-                              ? 'border-yellow-500/60 bg-yellow-900/20'
-                              : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'
+                          onClick={() => toggleNom(n.id)}
+                          className={`w-full text-left rounded-lg p-3 ${
+                            sel.includes(n.id)
+                              ? 'bg-amber-500/10 border border-amber-500/30'
+                              : 'hover:bg-zinc-800/50 border border-transparent'
                           }`}
-                          aria-pressed={Object.values(podium).includes(n.id)}
+                          aria-pressed={sel.includes(n.id)}
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
@@ -613,130 +514,198 @@ export default function VotarIndexPage() {
                                 );
                               })()}
                             </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-zinc-100">{n.nombre}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-zinc-100 truncate">{n.nombre}</div>
                               {detalle.tipo === 'indirecto' && n.descripcion && (
                                 <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
                               )}
+                              {detalle.tipo === 'indirecto' && (() => {
+                                const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                const ownerName = owner?.first_name || owner?.username;
+                                return ownerName ? (
+                                  <div className="text-xs text-cyan-400 mt-0.5">de {ownerName}</div>
+                                ) : null;
+                              })()}
                             </div>
+                            {sel.includes(n.id) && (
+                              <div className="ml-2 text-amber-500">
+                                <svg 
+                                  xmlns="http://www.w3.org/2000/svg" 
+                                  width="20" 
+                                  height="20" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              </div>
+                            )}
                           </div>
                         </button>
                       ))}
                     </div>
                     
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-yellow-400/30 bg-yellow-900/10 p-4">
-                        <h3 className="text-yellow-300 font-medium mb-3">Tu podio</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-yellow-900/30 to-yellow-900/10 border border-yellow-500/30">
-                            <div className="h-8 w-8 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-yellow-300 font-bold">1</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-zinc-100 truncate">
-                                {podium.oro ? detalle.nominados.find(n => n.id === podium.oro)?.nombre : '—'}
-                              </div>
-                            </div>
-                            {podium.oro && (
-                              <button 
-                                onClick={() => clearPodiumSlot('oro')}
-                                className="text-yellow-300 hover:text-yellow-200"
-                                aria-label="Quitar oro"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-zinc-800/50 to-zinc-800/30 border border-zinc-700/50">
-                            <div className="h-8 w-8 rounded-full bg-zinc-700/50 border border-zinc-600/50 flex items-center justify-center text-zinc-300 font-bold">2</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-zinc-100 truncate">
-                                {podium.plata ? detalle.nominados.find(n => n.id === podium.plata)?.nombre : '—'}
-                              </div>
-                            </div>
-                            {podium.plata && (
-                              <button 
-                                onClick={() => clearPodiumSlot('plata')}
-                                className="text-zinc-400 hover:text-zinc-200"
-                                aria-label="Quitar plata"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-amber-900/30 to-amber-900/10 border border-amber-700/50">
-                            <div className="h-8 w-8 rounded-full bg-amber-700/30 border border-amber-600/50 flex items-center justify-center text-amber-300 font-bold">3</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-zinc-100 truncate">
-                                {podium.bronce ? detalle.nominados.find(n => n.id === podium.bronce)?.nombre : '—'}
-                              </div>
-                            </div>
-                            {podium.bronce && (
-                              <button 
-                                onClick={() => clearPodiumSlot('bronce')}
-                                className="text-amber-400 hover:text-amber-200"
-                                aria-label="Quitar bronce"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                    <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between items-center">
+                      <div className="text-sm text-zinc-400">
+                        {sel.length} de {detalle.max_votos_ronda1 || 4} seleccionados
                       </div>
-                      
-                      <div className="flex justify-end gap-2 pt-2">
+                      <div className="flex gap-2">
                         <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
                         <Button 
                           onClick={saveSelection}
-                          disabled={!podium.oro || !podium.plata || !podium.bronce}
+                          disabled={sel.length !== (detalle.max_votos_ronda1 || 4)}
                           className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white"
                         >
-                          Guardar podio
+                          Guardar selección
                         </Button>
                       </div>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="p-4">
-              {modalError ? (
-                <div className="rounded-lg border border-red-500/30 bg-red-900/20 p-4 text-red-200">
-                  <div className="font-medium">Error</div>
-                  <p className="text-sm">{modalError}</p>
-                </div>
-              ) : !token ? (
-                <div className="rounded-lg border border-blue-500/30 bg-blue-900/20 p-4 text-blue-200">
-                  <p className="text-sm">
-                    Debes iniciar sesión para votar.{" "}
-                    <Link href="/login" className="font-medium text-blue-300 hover:text-blue-100 underline">
-                      Iniciar sesión
-                    </Link>
-                  </p>
-                </div>
               ) : (
-                <div className="text-center py-6 text-zinc-400">
-                  No se pudo cargar la información del premio
+                <div className="p-1">
+                  <div className="space-y-4">
+                    <p className="text-sm text-zinc-400">Asigna Oro, Plata y Bronce entre los finalistas</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        {detalle.nominados.slice(0, 5).map((n) => (
+                          <button
+                            key={n.id}
+                            onClick={() => assignPodium(n.id)}
+                            className={`w-full text-left rounded-lg p-3 border ${
+                              Object.values(podium).includes(n.id)
+                                ? 'border-yellow-500/60 bg-yellow-900/20'
+                                : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'
+                            }`}
+                            aria-pressed={Object.values(podium).includes(n.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
+                                {(() => {
+                                  const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                  const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
+                                  if (img) {
+                                    return (
+                                      <Image 
+                                        src={img} 
+                                        alt={n.nombre} 
+                                        width={40} 
+                                        height={40} 
+                                        className="object-cover w-full h-full" 
+                                        unoptimized 
+                                      />
+                                    );
+                                  }
+                                  return (
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
+                                      {n.nombre.charAt(0).toUpperCase()}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-zinc-100">{n.nombre}</div>
+                                {detalle.tipo === 'indirecto' && n.descripcion && (
+                                  <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-yellow-400/30 bg-yellow-900/10 p-4">
+                          <h3 className="text-yellow-300 font-medium mb-3">Tu podio</h3>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-yellow-900/30 to-yellow-900/10 border border-yellow-500/30">
+                              <div className="h-8 w-8 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-yellow-300 font-bold">1</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-zinc-100 truncate">
+                                  {podium.oro ? detalle.nominados.find(n => n.id === podium.oro)?.nombre : '—'}
+                                </div>
+                              </div>
+                              {podium.oro && (
+                                <button 
+                                  onClick={() => clearPodiumSlot('oro')}
+                                  className="text-yellow-300 hover:text-yellow-200"
+                                  aria-label="Quitar oro"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-zinc-800/50 to-zinc-800/30 border border-zinc-700/50">
+                              <div className="h-8 w-8 rounded-full bg-zinc-700/50 border border-zinc-600/50 flex items-center justify-center text-zinc-300 font-bold">2</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-zinc-100 truncate">
+                                  {podium.plata ? detalle.nominados.find(n => n.id === podium.plata)?.nombre : '—'}
+                                </div>
+                              </div>
+                              {podium.plata && (
+                                <button 
+                                  onClick={() => clearPodiumSlot('plata')}
+                                  className="text-zinc-400 hover:text-zinc-200"
+                                  aria-label="Quitar plata"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-amber-900/30 to-amber-900/10 border border-amber-700/50">
+                              <div className="h-8 w-8 rounded-full bg-amber-700/30 border border-amber-600/50 flex items-center justify-center text-amber-300 font-bold">3</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-zinc-100 truncate">
+                                  {podium.bronce ? detalle.nominados.find(n => n.id === podium.bronce)?.nombre : '—'}
+                                </div>
+                              </div>
+                              {podium.bronce && (
+                                <button 
+                                  onClick={() => clearPodiumSlot('bronce')}
+                                  className="text-amber-400 hover:text-amber-200"
+                                  aria-label="Quitar bronce"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
+                          <Button 
+                            onClick={saveSelection}
+                            disabled={!podium.oro || !podium.plata || !podium.bronce}
+                            className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white"
+                          >
+                            Guardar podio
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-              
-              <div className="mt-6 flex justify-end">
-                <Button variant="ghost" onClick={closeModal}>
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          )}
+              )
+            ) : (
+              <div className="p-4" />
+            )}
         </Modal>
       {/* Barra informativa en la parte inferior */}
       {hayAbiertos && (
