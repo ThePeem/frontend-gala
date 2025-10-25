@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { apiFetch } from "@/lib/api";
 import Button from "@/components/ui/Button";
 import Countdown from "@/components/results/Countdown";
@@ -44,7 +43,7 @@ export default function VotarIndexPage() {
   const [sel, setSel] = useState<string[]>([]);
   const [podium, setPodium] = useState<{ oro?: string; plata?: string; bronce?: string }>({});
   const [modalError, setModalError] = useState<string | null>(null);
-  const [modalSuccess, setModalSuccess] = useState<string | null>(null);
+  const [, setModalSuccess] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   // Selecciones guardadas por premio para confirmar todas juntas
   const [seleccionesGlobales, setSeleccionesGlobales] = useState<Record<string, string[]>>({});
