@@ -26,7 +26,7 @@ interface Premio {
 }
 
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
-interface NominadoDetalle { id: string; nombre: string; descripcion: string | null; imagen: string | null; usuarios_vinculados_detalles?: UsuarioMini[] }
+interface NominadoDetalle { id: string; nombre: string; descripcion: string | null; imagen: string | null; usuario_id?: string; usuarios_vinculados_detalles?: UsuarioMini[] }
 interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos_ronda1?: number; }
 interface MisVotoR1Item { nominado: { id: string } }
 interface MisVotoR2Item { orden: number; nominado: { id: string } }
@@ -34,7 +34,7 @@ interface MisVotoPremio { premio: string; ronda_1?: MisVotoR1Item[]; ronda_2?: M
 interface PremioListado { id: string; nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>; }
 
 export default function VotarIndexPage() {
-  const { token } = useAuth() as { token?: string | null };
+  const { authToken: token } = useAuth() as { authToken?: string | null };
   const [premios, setPremios] = useState<Premio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,8 +85,11 @@ export default function VotarIndexPage() {
   const openModal = async (id: string) => {
     setOpenedId(id);
     setDetalle(null);
-    setSel([]);
-    setPodium({});
+    // Inicializar con los votos guardados si existen
+    const savedVotes = seleccionesGlobales[id] || [];
+    setSel([...savedVotes]);
+    const savedPodium = seleccionesR2[id] || {};
+    setPodium({...savedPodium});
     setModalError(null);
     setModalSuccess(null);
     setModalLoading(true);
@@ -151,19 +154,30 @@ export default function VotarIndexPage() {
         const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
         const vp = Array.isArray(prev) ? prev.find((v) => v.premio === id) : null;
         if (vp) {
-            if (detalleLocal.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
-              setSel(vp.ronda_1.map((x) => x.nominado?.id).filter(Boolean));
-            }
-            if (detalleLocal.ronda_actual === 2 && Array.isArray(vp.ronda_2)) {
-              const np: { oro?: string; plata?: string; bronce?: string } = {};
-              vp.ronda_2.forEach((x) => {
-                if (x.orden === 1) np.oro = x.nominado?.id;
-                if (x.orden === 2) np.plata = x.nominado?.id;
-                if (x.orden === 3) np.bronce = x.nominado?.id;
-              });
-              setPodium(np);
-            }
+          if (detalleLocal.ronda_actual === 1 && Array.isArray(vp.ronda_1)) {
+            const savedVotes = vp.ronda_1.map((x) => x.nominado?.id).filter(Boolean) as string[];
+            setSel(savedVotes);
+            // Update global state with the loaded votes
+            setSeleccionesGlobales(prev => ({
+              ...prev,
+              [id]: savedVotes
+            }));
           }
+          if (detalleLocal.ronda_actual === 2 && Array.isArray(vp.ronda_2)) {
+            const np: { oro?: string; plata?: string; bronce?: string } = {};
+            vp.ronda_2.forEach((x) => {
+              if (x.orden === 1) np.oro = x.nominado?.id;
+              if (x.orden === 2) np.plata = x.nominado?.id;
+              if (x.orden === 3) np.bronce = x.nominado?.id;
+            });
+            setPodium(np);
+            // Update global R2 state with the loaded votes
+            setSeleccionesR2(prev => ({
+              ...prev,
+              [id]: { ...np }
+            }));
+          }
+        }
       } catch {
         // Silencioso: si falla, no bloquea el modal
         console.warn('No se pudieron cargar votos previos');
@@ -184,7 +198,7 @@ export default function VotarIndexPage() {
     const max = detalle.max_votos_ronda1 || 4;
     // Bloquear auto-voto si el nominado está vinculado al usuario
     const nom = detalle.nominados.find(n => n.id === id);
-    if (meId && nom?.usuarios_vinculados_detalles?.some(u => u.id === meId)) {
+    if (meId && (nom?.usuario_id === meId || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId))) {
       setModalError('No puedes votarte a ti mismo');
       return;
     }
@@ -195,7 +209,7 @@ export default function VotarIndexPage() {
     // Bloquear auto-voto también en R2
     if (detalle) {
       const nom = detalle.nominados.find(n => n.id === id);
-      if (meId && nom?.usuarios_vinculados_detalles?.some(u => u.id === meId)) {
+      if (meId && (nom?.usuario_id === meId || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId))) {
         setModalError('No puedes votarte a ti mismo');
         return;
       }
@@ -221,6 +235,41 @@ export default function VotarIndexPage() {
     if (!detalle) return;
     setModalError(null);
     setModalSuccess(null);
+
+    // Validar auto-voto y guardar en el estado global
+    if (meId) {
+      if (detalle.ronda_actual === 1) {
+        const hasSelfVote = sel.some(id => {
+          const nom = detalle.nominados.find(n => n.id === id);
+          return (nom?.usuario_id === meId) || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId);
+        });
+        if (hasSelfVote) {
+          setModalError('No puedes votarte a ti mismo');
+          return;
+        }
+        // Actualizar el estado global con los votos actuales
+        setSeleccionesGlobales(prev => ({
+          ...prev,
+          [detalle.id]: [...sel]
+        }));
+      } else {
+        const podiumNoms = Object.values(podium).filter(Boolean);
+        const hasSelfVote = podiumNoms.some(id => {
+          const nom = detalle.nominados.find(n => n.id === id);
+          return (nom?.usuario_id === meId) || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId);
+        });
+        if (hasSelfVote) {
+          setModalError('No puedes votarte a ti mismo');
+          return;
+        }
+        // Actualizar el estado global R2 con el podio actual
+        setSeleccionesR2(prev => ({
+          ...prev,
+          [detalle.id]: { ...podium }
+        }));
+      }
+    }
+
     if (detalle.ronda_actual === 1) {
       const max = detalle.max_votos_ronda1 || 4;
       if (sel.length !== max) {
@@ -244,23 +293,37 @@ export default function VotarIndexPage() {
 
   // Enviar todas las selecciones guardadas (R1 y R2)
   const submitAllSelections = async () => {
+    if (!window.confirm('¿Estás seguro de que estos son tus votos? Podrás revisarlos antes de enviar.')) {
+      return;
+    }
+    // Primero limpiamos cualquier error previo
+    setError(null);
+    
     try {
       // Validar que todos los premios abiertos cumplan requisitos
       const abiertosR1 = ordered.filter(p => p.estado === 'votacion_1');
-      for (const p of abiertosR1) {
+      const errores: string[] = [];
+      
+      abiertosR1.forEach(p => {
         const s = seleccionesGlobales[p.id] || [];
         if (s.length !== 4) {
-          setError(`Debes votar 4 nominados en "${p.nombre}"`);
-          return;
+          errores.push(`Debes votar 4 nominados en "${p.nombre}"`);
         }
-      }
+      });
+      
       const abiertosR2 = ordered.filter(p => p.estado === 'votacion_2');
-      for (const p of abiertosR2) {
+      abiertosR2.forEach(p => {
         const pod = seleccionesR2[p.id] || {};
         if (!pod.oro || !pod.plata || !pod.bronce) {
-          setError(`Debes completar el podio en "${p.nombre}"`);
-          return;
+          errores.push(`Debes completar el podio en "${p.nombre}"`);
         }
+      });
+      
+      if (errores.length > 0) {
+        setError(errores.join('. '));
+        // Hacer scroll al principio para ver el mensaje de error
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
       }
 
       // Enviar R1
@@ -317,20 +380,49 @@ export default function VotarIndexPage() {
       }
       return 'Error al enviar el voto';
     }
-    return 'Error al enviar el voto';
+    return 'Error desconocido al procesar la solicitud';
   }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-gradient-to-b from-[#0a0a0b] via-[#111214] to-[#0a0a0b]">
       <Header />
       <main className="flex-grow">
-        <section className="py-10 md:py-12">
-          <div className="max-w-6xl mx-auto px-4 space-y-6 md:space-y-8">
-            <h1 className="headline text-[clamp(1.8rem,6vw,3rem)]">Votar</h1>
-            <p className="text-zinc-400">Selecciona un premio para emitir tus votos.</p>
+        <section className="py-6 md:py-8">
+          <div className="max-w-6xl mx-auto px-4 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div>
+                <h1 className="headline text-[clamp(1.8rem,6vw,2.5rem)] mb-2">Votar</h1>
+                <p className="text-zinc-400">Selecciona un premio para emitir tus votos.</p>
+              </div>
+              
+              {/* Sección de confirmación de votos en la parte superior */}
+              {hayAbiertos && (
+                <div className="w-full md:w-auto bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 shadow-lg">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm">
+                      <div className="font-medium text-amber-400">Tus votos</div>
+                      <div className="text-zinc-400 text-xs">
+                        {ordered.filter(p => p.estado === 'votacion_1').length} premios en Ronda 1 • 
+                        {ordered.filter(p => p.estado === 'votacion_2').length} en Ronda 2
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={submitAllSelections}
+                      className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium py-2 px-6 rounded-lg shadow-lg transition-all hover:scale-105 w-full sm:w-auto text-center"
+                    >
+                      <span className="text-lg font-bold">Confirmar todos los votos</span>
+                    </Button>
+                  </div>
+                  {error && (
+                    <div className="mt-3 p-2 bg-red-900/50 border border-red-800 text-red-100 rounded text-xs text-center">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {loading && <div className="text-zinc-400">Cargando premios…</div>}
-            {error && <div className="text-red-400">{error}</div>}
+            {loading && <div className="text-zinc-400 py-8 text-center">Cargando premios…</div>}
 
             {!loading && !error && !hayAbiertos && (
               <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-600/15 via-amber-500/10 to-transparent p-[1px]">
@@ -341,8 +433,10 @@ export default function VotarIndexPage() {
                 </div>
               </div>
             )}
+          </div>
 
-            {!loading && !error && ordered.map((premio) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {!loading && ordered.map((premio) => {
               const isOpen = (premio.estado === 'votacion_1' || premio.estado === 'votacion_2');
               const like: PremioLike = {
                 id: premio.id,
@@ -354,145 +448,313 @@ export default function VotarIndexPage() {
                 image_url: premio.image_url ?? null,
               };
               return (
-                <AwardCard
-                  key={premio.id}
-                  premio={like}
-                  primaryText="Votar"
-                  onPrimaryClick={(p) => isOpen ? openModal(p.id) : undefined}
-                  primaryDisabled={!isOpen}
-                />
+                <div key={premio.id} className="relative">
+                  <AwardCard
+                    premio={like}
+                    primaryText="Votar"
+                    onPrimaryClick={(p) => isOpen ? openModal(p.id) : undefined}
+                    primaryDisabled={!isOpen}
+                  />
+                  {isOpen && (seleccionesGlobales[premio.id]?.length > 0 || seleccionesR2[premio.id]) && (
+                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      ✓
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
-        </section>
-      </main>
-      <Footer />
 
-      {/* Modal de votación */}
-      <Modal open={!!openedId} onClose={closeModal} title={detalle ? `${detalle.nombre} • ${detalle.ronda_actual === 2 ? 'Final' : 'Ronda 1'}` : (modalError ? 'Votación' : 'Cargando premio…')}>
-        {modalLoading && <div className="text-zinc-400 py-6">Cargando premio…</div>}
-        {!modalLoading && detalle && (
-          <div className="space-y-4">
-            {modalError && <div className="text-red-400 text-sm">{modalError}</div>}
-            {modalSuccess && <div className="text-green-400 text-sm">{modalSuccess}</div>}
-
-            {/* Mensajes de error se muestran arriba; no bloquear por falta de token ya que puede haber sesión por cookie */}
-
-            {detalle.ronda_actual === 1 ? (
-              <div>
-                <div className="text-xs text-zinc-400 mb-2">Selecciona exactamente {detalle.max_votos_ronda1 || 4}</div>
-                {detalle.nominados.length === 0 ? (
-                  <div className="text-zinc-400 text-sm">No hay nominados disponibles para este premio.</div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {detalle.nominados.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => toggleNom(n.id)}
-                      className={`text-left rounded-lg border p-3 ${sel.includes(n.id) ? 'border-amber-500/60 bg-amber-900/20' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'} ${meId && n.usuarios_vinculados_detalles?.some(u => u.id === meId) ? 'opacity-50 pointer-events-none' : ''}`}
-                      aria-pressed={sel.includes(n.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800">
-                          {(() => {
-                            const owner = (n.usuarios_vinculados_detalles || [])[0];
-                            const img = n.imagen || owner?.foto_url || owner?.foto_perfil || '';
-                            return img ? <Image src={img} alt={n.nombre} fill className="object-cover" unoptimized /> : null;
-                          })()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm text-zinc-100 truncate">{n.nombre}</div>
-                          {detalle.tipo === 'indirecto' && n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
-                          {detalle.tipo === 'indirecto' && (() => {
-                            const owner = (n.usuarios_vinculados_detalles || [])[0];
-                            const ownerName = owner?.first_name || owner?.username;
-                            return ownerName ? <div className="text-[11px] text-cyan-300">de {ownerName}</div> : null;
-                          })()}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+          <Modal 
+            open={!!openedId} 
+            onClose={closeModal} 
+            title={detalle ? `${detalle.nombre} • ${detalle.ronda_actual === 2 ? 'Final' : 'Ronda 1'}` : (modalError ? 'Votación' : 'Cargando premio…')}
+          >
+            {modalLoading ? (
+              <div className="text-zinc-400 py-6 text-center">Cargando premio…</div>
+            ) : detalle ? (
+              <div className="p-1">
+                {!votingStart ? (
+                  <div className="text-center text-zinc-400">Las votaciones comenzarán pronto</div>
+                ) : votingStart > new Date() ? (
+                  <div className="text-center">
+                    <div className="text-zinc-400 mb-4">Las votaciones comienzan en:</div>
+                    <Countdown target={votingStart} />
                   </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                <div className="text-xs text-zinc-400 mb-2">Asigna Oro, Plata y Bronce entre los finalistas</div>
-                <div className="grid sm:grid-cols-2 gap-3">
+                ) : detalle.ronda_actual === 1 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-zinc-400 mb-3">
+                    Selecciona hasta {detalle.max_votos_ronda1 || 4} nominados
+                  </p>
                   <div className="space-y-2">
-                    {detalle.nominados.slice(0,5).map(n => (
+                    {detalle.nominados.map((n) => (
                       <button
                         key={n.id}
-                        onClick={() => assignPodium(n.id)}
-                        className={`w-full text-left rounded-lg border p-3 ${Object.values(podium).includes(n.id) ? 'border-yellow-500/60 bg-yellow-900/20' : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'}`}
-                        aria-pressed={Object.values(podium).includes(n.id)}
+                        onClick={() => toggleNom(n.id)}
+                        className={`w-full text-left rounded-lg p-3 ${
+                          sel.includes(n.id)
+                            ? 'bg-amber-500/10 border border-amber-500/30'
+                            : 'hover:bg-zinc-800/50 border border-transparent'
+                        }`}
+                        aria-pressed={sel.includes(n.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800">
+                          <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
                             {(() => {
                               const owner = (n.usuarios_vinculados_detalles || [])[0];
-                              const img = n.imagen || owner?.foto_url || owner?.foto_perfil || '';
-                              return img ? <Image src={img} alt={n.nombre} fill className="object-cover" unoptimized /> : null;
+                              const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
+                              if (img) {
+                                return (
+                                  <Image 
+                                    src={img} 
+                                    alt={n.nombre} 
+                                    width={40} 
+                                    height={40} 
+                                    className="object-cover w-full h-full" 
+                                    unoptimized 
+                                  />
+                                );
+                              }
+                              return (
+                                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
+                                  {n.nombre.charAt(0).toUpperCase()}
+                                </div>
+                              );
                             })()}
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-sm text-zinc-100 truncate">{n.nombre}</div>
-                            {detalle.tipo === 'indirecto' && n.descripcion && <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-zinc-100 truncate">{n.nombre}</div>
+                            {detalle.tipo === 'indirecto' && n.descripcion && (
+                              <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
+                            )}
+                            {detalle.tipo === 'indirecto' && (() => {
+                              const owner = (n.usuarios_vinculados_detalles || [])[0];
+                              const ownerName = owner?.first_name || owner?.username;
+                              return ownerName ? (
+                                <div className="text-xs text-cyan-400 mt-0.5">de {ownerName}</div>
+                              ) : null;
+                            })()}
                           </div>
+                          {sel.includes(n.id) && (
+                            <div className="ml-2 text-amber-500">
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                              </svg>
+                            </div>
+                          )}
                         </div>
                       </button>
                     ))}
                   </div>
-                  <div className="space-y-2">
-                    <div className="rounded-lg border border-yellow-400/40 p-3">
-                      <div className="text-yellow-300 text-sm font-semibold mb-2">Podio</div>
-                      <div className="space-y-2 text-sm">
-                        <div>🥇 Oro: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.oro)?.nombre || '—'}</span> {podium.oro && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('oro')}>Quitar</button>)}</div>
-                        <div>🥈 Plata: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.plata)?.nombre || '—'}</span> {podium.plata && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('plata')}>Quitar</button>)}</div>
-                        <div>🥉 Bronce: <span className="text-zinc-200">{detalle.nominados.find(n => n.id === podium.bronce)?.nombre || '—'}</span> {podium.bronce && (<button className="ml-2 text-xs text-red-300 underline" onClick={() => clearPodiumSlot('bronce')}>Quitar</button>)}</div>
+                  
+                  <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between items-center">
+                    <div className="text-sm text-zinc-400">
+                      {sel.length} de {detalle.max_votos_ronda1 || 4} seleccionados
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
+                      <Button 
+                        onClick={saveSelection}
+                        disabled={sel.length !== (detalle.max_votos_ronda1 || 4)}
+                        className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white"
+                      >
+                        Guardar selección
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-zinc-400">Asigna Oro, Plata y Bronce entre los finalistas</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      {detalle.nominados.slice(0, 5).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => assignPodium(n.id)}
+                          className={`w-full text-left rounded-lg p-3 border ${
+                            Object.values(podium).includes(n.id)
+                              ? 'border-yellow-500/60 bg-yellow-900/20'
+                              : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700'
+                          }`}
+                          aria-pressed={Object.values(podium).includes(n.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
+                              {(() => {
+                                const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
+                                if (img) {
+                                  return (
+                                    <Image 
+                                      src={img} 
+                                      alt={n.nombre} 
+                                      width={40} 
+                                      height={40} 
+                                      className="object-cover w-full h-full" 
+                                      unoptimized 
+                                    />
+                                  );
+                                }
+                                return (
+                                  <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
+                                    {n.nombre.charAt(0).toUpperCase()}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-zinc-100">{n.nombre}</div>
+                              {detalle.tipo === 'indirecto' && n.descripcion && (
+                                <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-yellow-400/30 bg-yellow-900/10 p-4">
+                        <h3 className="text-yellow-300 font-medium mb-3">Tu podio</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-yellow-900/30 to-yellow-900/10 border border-yellow-500/30">
+                            <div className="h-8 w-8 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-yellow-300 font-bold">1</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-zinc-100 truncate">
+                                {podium.oro ? detalle.nominados.find(n => n.id === podium.oro)?.nombre : '—'}
+                              </div>
+                            </div>
+                            {podium.oro && (
+                              <button 
+                                onClick={() => clearPodiumSlot('oro')}
+                                className="text-yellow-300 hover:text-yellow-200"
+                                aria-label="Quitar oro"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-zinc-800/50 to-zinc-800/30 border border-zinc-700/50">
+                            <div className="h-8 w-8 rounded-full bg-zinc-700/50 border border-zinc-600/50 flex items-center justify-center text-zinc-300 font-bold">2</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-zinc-100 truncate">
+                                {podium.plata ? detalle.nominados.find(n => n.id === podium.plata)?.nombre : '—'}
+                              </div>
+                            </div>
+                            {podium.plata && (
+                              <button 
+                                onClick={() => clearPodiumSlot('plata')}
+                                className="text-zinc-400 hover:text-zinc-200"
+                                aria-label="Quitar plata"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-3 p-2 rounded-lg bg-gradient-to-r from-amber-900/30 to-amber-900/10 border border-amber-700/50">
+                            <div className="h-8 w-8 rounded-full bg-amber-700/30 border border-amber-600/50 flex items-center justify-center text-amber-300 font-bold">3</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-zinc-100 truncate">
+                                {podium.bronce ? detalle.nominados.find(n => n.id === podium.bronce)?.nombre : '—'}
+                              </div>
+                            </div>
+                            {podium.bronce && (
+                              <button 
+                                onClick={() => clearPodiumSlot('bronce')}
+                                className="text-amber-400 hover:text-amber-200"
+                                aria-label="Quitar bronce"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
+                        <Button 
+                          onClick={saveSelection}
+                          disabled={!podium.oro || !podium.plata || !podium.bronce}
+                          className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white"
+                        >
+                          Guardar podio
+                        </Button>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end gap-2">
-              <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-              <Button onClick={saveSelection}>
-                {detalle.ronda_actual === 1 ? 'Guardar selección' : 'Guardar podio'}
-              </Button>
+              )}
             </div>
-          </div>
-        )}
-        {!modalLoading && !detalle && (
-          <div className="space-y-3">
-            {modalError && (
-              <div className="rounded border border-red-400/30 bg-red-900/20 text-red-200 text-sm p-3">{modalError}</div>
-            )}
-            {!token && (
-              <div className="rounded border border-blue-400/30 bg-blue-900/20 text-blue-200 text-sm p-3">
-                Debes iniciar sesión para votar. <Link href="/login" className="underline">Ir a iniciar sesión</Link>
+          ) : (
+            <div className="p-4">
+              {modalError ? (
+                <div className="rounded-lg border border-red-500/30 bg-red-900/20 p-4 text-red-200">
+                  <div className="font-medium">Error</div>
+                  <p className="text-sm">{modalError}</p>
+                </div>
+              ) : !token ? (
+                <div className="rounded-lg border border-blue-500/30 bg-blue-900/20 p-4 text-blue-200">
+                  <p className="text-sm">
+                    Debes iniciar sesión para votar.{" "}
+                    <Link href="/login" className="font-medium text-blue-300 hover:text-blue-100 underline">
+                      Iniciar sesión
+                    </Link>
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-zinc-400">
+                  No se pudo cargar la información del premio
+                </div>
+              )}
+              
+              <div className="mt-6 flex justify-end">
+                <Button variant="ghost" onClick={closeModal}>
+                  Cerrar
+                </Button>
               </div>
-            )}
-          </div>
-        )}
-      </Modal>
-      {/* Barra final para confirmar todos (R1) */}
+            </div>
+          )}
+        </Modal>
+      {/* Barra informativa en la parte inferior */}
       {hayAbiertos && (
-        <div className="sticky bottom-0 z-20 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center gap-3 justify-between">
-            <div className="text-sm text-zinc-400 w-full">
-              Ronda 1: selecciona 4 nominados en cada premio. Ronda 2: completa el podio (Oro, Plata, Bronce). Luego pulsa confirmar para enviar todos los votos.
-            </div>
-            <div className="shrink-0">
-              <Button onClick={submitAllSelections}>
-                Confirmar todos los votos
-              </Button>
-            </div>
+        <div className="sticky bottom-0 z-10 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col items-center gap-2">
+            <div className="text-xs text-zinc-500 text-center">Puedes modificar tus votos tantas veces como quieras antes de confirmar</div>
+            <Button 
+              onClick={submitAllSelections}
+              className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-semibold px-6 py-3"
+            >
+              Confirmar todos los votos
+            </Button>
           </div>
         </div>
       )}
+        </section>
+      </main>
     </div>
   );
 }
