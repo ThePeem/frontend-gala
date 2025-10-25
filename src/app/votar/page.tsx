@@ -80,6 +80,15 @@ export default function VotarIndexPage() {
   const votingStart = useMemo(() => votingStartEnv ? new Date(votingStartEnv) : null, [votingStartEnv]);
   const hayAbiertos = ordered.some(p => p.estado === 'votacion_1' || p.estado === 'votacion_2');
 
+  // Resolver URLs de imagen (si vienen relativas del API)
+  const API_BASE_IMG = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
+  const toImg = (src?: string | null) => {
+    if (!src) return src as null;
+    if (/^https?:\/\//i.test(src)) return src;
+    if (!API_BASE_IMG) return src; // como fallback, se intentará relativa
+    return `${API_BASE_IMG}${src.startsWith('/') ? '' : '/'}${src}`;
+  };
+
   const openModal = async (id: string) => {
     setOpenedId(id);
     setDetalle(null);
@@ -335,11 +344,13 @@ export default function VotarIndexPage() {
       for (const p of abiertosR2) {
         const pod = seleccionesR2[p.id]!;
         const votosR2 = [
-          { premio: p.id, nominado: pod.oro, ronda: 2, orden_ronda2: 1 },
-          { premio: p.id, nominado: pod.plata, ronda: 2, orden_ronda2: 2 },
-          { premio: p.id, nominado: pod.bronce, ronda: 2, orden_ronda2: 3 },
+          { premio: p.id, nominado: pod.oro, ronda: 2, orden: 1 },
+          { premio: p.id, nominado: pod.plata, ronda: 2, orden: 2 },
+          { premio: p.id, nominado: pod.bronce, ronda: 2, orden: 3 },
         ];
         for (const v of votosR2) {
+          // debug ligero para diagnosticar posibles 400
+          console.log('[submit R2] payload', v);
           await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
         }
       }
@@ -493,7 +504,7 @@ export default function VotarIndexPage() {
                             <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
                               {(() => {
                                 const owner = (n.usuarios_vinculados_detalles || [])[0];
-                                const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
+                                const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil || null) as string | null;
                                 if (img) {
                                   return (
                                     <Image 
