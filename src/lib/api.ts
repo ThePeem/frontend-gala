@@ -2,6 +2,8 @@
 const API_BASE =
   (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
+const isProd = process.env.NODE_ENV === 'production';
+
 // Une base + endpoint asegurando una sola barra
 function joinUrl(base: string, endpoint: string) {
   const e = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
@@ -15,8 +17,10 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const url = joinUrl(API_BASE, endpoint);
   
-  console.log(`[apiFetch] Making request to: ${url}`);
-  console.log(`[apiFetch] Using API_BASE: ${API_BASE}`);
+  if (!isProd) {
+    console.log(`[apiFetch] Making request to: ${url}`);
+    console.log(`[apiFetch] Using API_BASE: ${API_BASE}`);
+  }
 
   // Intenta recuperar token del almacenamiento del navegador si no se proporciona explícitamente
   let tokenToUse = authToken ?? null;
@@ -40,8 +44,10 @@ export async function apiFetch<T = unknown>(
       headers,
       credentials: 'include' // Asegura que las cookies se envíen con la petición
     });
-
-    console.log(`[apiFetch] Response status: ${res.status} ${res.statusText}`);
+    
+    if (!isProd) {
+      console.log(`[apiFetch] Response status: ${res.status} ${res.statusText}`);
+    }
     
     // Leer cuerpo una única vez para evitar "body stream already read"
     const raw = res.status === 204 ? '' : await res.text();
@@ -54,16 +60,22 @@ export async function apiFetch<T = unknown>(
         // mantener raw tal cual si no es JSON
       }
       const error = new Error(`Error ${res.status} ${res.statusText}${errorDetails ? ' → ' + errorDetails : ''}`);
-      console.error('[apiFetch] API Error:', error);
+      if (!isProd) {
+        console.error('[apiFetch] API Error:', error);
+      }
       throw error;
     }
 
     // Procesar la respuesta exitosa
     const data = (raw ? JSON.parse(raw) : null) as T;
-    console.log('[apiFetch] Response data:', data);
+    if (!isProd) {
+      console.log('[apiFetch] Response data:', data);
+    }
     return data;
   } catch (error) {
-    console.error('[apiFetch] Request failed:', error);
+    if (!isProd) {
+      console.error('[apiFetch] Request failed:', error);
+    }
     throw error;
   }
 }
