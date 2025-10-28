@@ -65,6 +65,7 @@ export default function AdminResultadosPage() {
   const [accionConfirmar, setAccionConfirmar] = useState<(() => Promise<void>) | null>(null);
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
   const [phaseOverride, setPhaseOverride] = useState<string>('');
+  const [tops, setTops] = useState<Array<{ premio: { id: string; nombre: string; estado: string; ronda_actual: number }, top: Array<{ id: string; nombre: string; valor: number }> }>>([]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setPhaseOverride(window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY) || '');
@@ -77,13 +78,15 @@ export default function AdminResultadosPage() {
       setError(null);
       
       // Obtener datos en paralelo
-      const [premiosRes, estadisticasRes] = await Promise.all([
+      const [premiosRes, estadisticasRes, topsRes] = await Promise.all([
         axiosInstance.get<Premio[]>("api/admin/premios/"),
         axiosInstance.get<EstadisticasGlobales>("api/admin/estadisticas/"),
+        axiosInstance.get<typeof tops>("api/admin/premios-top/"),
       ]);
       
       setPremios(premiosRes.data);
       setEstadisticas(estadisticasRes.data);
+      setTops(topsRes.data as any);
       
     } catch (e) {
       console.error(e);
@@ -96,9 +99,8 @@ export default function AdminResultadosPage() {
   // Actualizar datos periódicamente
   useEffect(() => {
     if (!loading && isAuthenticated) {
+      // Solo cargar una vez al entrar o al cambiar el estado de autenticación.
       fetchData();
-      const interval = setInterval(fetchData, 5000); // Actualizar cada 5 segundos para barras de participación más vivas
-      return () => clearInterval(interval);
     }
   }, [loading, isAuthenticated, fetchData]);
   
@@ -282,6 +284,49 @@ export default function AdminResultadosPage() {
               )}
             </div>
           </Card>
+
+        {/* Nueva tarjeta: Top 5 por premio abierto */}
+        <Card className="mb-8">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-zinc-100">Seguimiento de premios abiertos</h2>
+              <div className="text-sm text-zinc-400">Top 5 por premio (R1: votos • R2: puntos)</div>
+            </div>
+            {fetching ? (
+              <div className="p-6 text-center text-zinc-400">Cargando datos…</div>
+            ) : (tops.length === 0) ? (
+              <div className="p-6 text-center text-zinc-500 text-sm">No hay premios abiertos ahora mismo.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {tops.map((item) => (
+                  <div key={item.premio.id} className="border border-zinc-800 rounded-lg overflow-hidden">
+                    <div className="p-3 bg-zinc-900/60 flex items-center justify-between">
+                      <div className="text-zinc-100 font-medium truncate mr-2">{item.premio.nombre}</div>
+                      <span className="px-2 py-0.5 text-[10px] rounded-full border border-zinc-700 text-zinc-300 whitespace-nowrap">Ronda {item.premio.ronda_actual}</span>
+                    </div>
+                    <div className="p-3">
+                      {item.top.length > 0 ? (
+                        <ul className="space-y-2">
+                          {item.top.map((t, idx) => (
+                            <li key={`${item.premio.id}-${t.id}`} className="flex items-center gap-3 p-2 rounded border border-zinc-800 bg-zinc-900/40">
+                              <div className="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold bg-zinc-700/60">{idx+1}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-zinc-100 truncate">{t.nombre}</p>
+                              </div>
+                              <div className="text-xs text-zinc-400 whitespace-nowrap">{t.valor}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-center py-3 text-zinc-500 text-sm">Sin votos aún</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
 
           <Card>
             <div className="p-4">
