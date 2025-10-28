@@ -49,6 +49,12 @@ type EstadisticasGlobales = {
   puede_publicar_resultados: boolean;
 };
 
+// Tipo para la respuesta de /api/admin/premios-top/
+export type TopPremio = {
+  premio: { id: string; nombre: string; estado: string; ronda_actual: number };
+  top: Array<{ id: string; nombre: string; valor: number }>;
+};
+
 export default function AdminResultadosPage() {
   const { isAuthenticated, loading, axiosInstance } = useAuth();
   const [premios, setPremios] = useState<Premio[]>([]);
@@ -65,7 +71,7 @@ export default function AdminResultadosPage() {
   const [accionConfirmar, setAccionConfirmar] = useState<(() => Promise<void>) | null>(null);
   const [mensajeConfirmacion, setMensajeConfirmacion] = useState('');
   const [phaseOverride, setPhaseOverride] = useState<string>('');
-  const [tops, setTops] = useState<Array<{ premio: { id: string; nombre: string; estado: string; ronda_actual: number }, top: Array<{ id: string; nombre: string; valor: number }> }>>([]);
+  const [tops, setTops] = useState<TopPremio[]>([]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setPhaseOverride(window.localStorage.getItem(RESULTS_PHASE_OVERRIDE_KEY) || '');
@@ -81,12 +87,12 @@ export default function AdminResultadosPage() {
       const [premiosRes, estadisticasRes, topsRes] = await Promise.all([
         axiosInstance.get<Premio[]>("api/admin/premios/"),
         axiosInstance.get<EstadisticasGlobales>("api/admin/estadisticas/"),
-        axiosInstance.get<typeof tops>("api/admin/premios-top/"),
+        axiosInstance.get<TopPremio[]>("api/admin/premios-top/"),
       ]);
       
       setPremios(premiosRes.data);
       setEstadisticas(estadisticasRes.data);
-      setTops(topsRes.data as any);
+      setTops(topsRes.data);
       
     } catch (e) {
       console.error(e);
