@@ -36,6 +36,7 @@ export default function VotarIndexPage() {
   const [premios, setPremios] = useState<Premio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [openedId, setOpenedId] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<PremioDetalle | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -47,6 +48,7 @@ export default function VotarIndexPage() {
   // Selecciones guardadas por premio para confirmar todas juntas
   const [seleccionesGlobales, setSeleccionesGlobales] = useState<Record<string, string[]>>({});
   const [seleccionesR2, setSeleccionesR2] = useState<Record<string, { oro?: string; plata?: string; bronce?: string }>>({});
+  const [myNomIds, setMyNomIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchPremios = async () => {
@@ -156,6 +158,14 @@ export default function VotarIndexPage() {
       if (!detalleLocal) throw new Error('No se pudo cargar el premio');
 
       setDetalle(detalleLocal);
+      // Cargar mis nominaciones para bloquear auto-voto en el modal
+      if (token) {
+        try {
+          const mine = await apiFetch<Array<{ id: string }>>('/api/mis-nominaciones/', {}, token);
+          const ids = new Set<string>((mine || []).map(x => x.id));
+          setMyNomIds(ids);
+        } catch {}
+      }
       // Precargar votos previos (si hay sesión por token o cookie)
       try {
         const prev = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
@@ -204,6 +214,10 @@ export default function VotarIndexPage() {
     if (!detalle) return;
     const max = detalle.max_votos_ronda1 || 4;
     // Bloquear auto-voto si el nominado está vinculado al usuario
+    if (myNomIds.has(id)) {
+      setModalError('No puedes votarte a ti mismo');
+      return;
+    }
     const nom = detalle.nominados.find(n => n.id === id);
     if (meId && (nom?.usuario_id === meId || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId))) {
       setModalError('No puedes votarte a ti mismo');
@@ -215,6 +229,10 @@ export default function VotarIndexPage() {
   const assignPodium = (id: string) => {
     // Bloquear auto-voto también en R2
     if (detalle) {
+      if (myNomIds.has(id)) {
+        setModalError('No puedes votarte a ti mismo');
+        return;
+      }
       const nom = detalle.nominados.find(n => n.id === id);
       if (meId && (nom?.usuario_id === meId || nom?.usuarios_vinculados_detalles?.some(u => u.id === meId))) {
         setModalError('No puedes votarte a ti mismo');
@@ -283,6 +301,11 @@ export default function VotarIndexPage() {
         setModalError(`Debes seleccionar exactamente ${max} nominados`);
         return;
       }
+      // Validación explícita anti auto-voto al guardar selección
+      if (sel.some(id => myNomIds.has(id))) {
+        setModalError('No puedes votarte a ti mismo');
+        return;
+      }
       setSeleccionesGlobales(prev => ({ ...prev, [detalle.id]: sel.slice() }));
       setModalSuccess('Selección guardada');
       setTimeout(() => setOpenedId(null), 500);
@@ -305,6 +328,7 @@ export default function VotarIndexPage() {
     }
     // Primero limpiamos cualquier error previo
     setError(null);
+    setSuccess(null);
     
     try {
       // Validar que todos los premios abiertos cumplan requisitos
@@ -316,6 +340,14 @@ export default function VotarIndexPage() {
         if (s.length !== 4) {
           errores.push(`Debes votar 4 nominados en "${p.nombre}"`);
         }
+        // Anti auto-voto en R1
+        if (s.some(id => myNomIds.has(id))) {
+          errores.push(`No puedes votarte a ti mismo en "${p.nombre}" (Ronda 1)`);
+        }
+        // Duplicados en R1
+        if (new Set(s).size !== s.length) {
+          errores.push(`No puedes repetir nominados en "${p.nombre}" (Ronda 1)`);
+        }
       });
       
       const abiertosR2 = ordered.filter(p => p.estado === 'votacion_2');
@@ -323,6 +355,15 @@ export default function VotarIndexPage() {
         const pod = seleccionesR2[p.id] || {};
         if (!pod.oro || !pod.plata || !pod.bronce) {
           errores.push(`Debes completar el podio en "${p.nombre}"`);
+        }
+        const ids = [pod.oro, pod.plata, pod.bronce].filter(Boolean) as string[];
+        // Distintos en R2
+        if (new Set(ids).size !== 3) {
+          errores.push(`Oro, Plata y Bronce deben ser distintos en "${p.nombre}"`);
+        }
+        // Anti auto-voto en R2
+        if (ids.some(id => myNomIds.has(id))) {
+          errores.push(`No puedes votarte a ti mismo en "${p.nombre}" (Ronda 2)`);
         }
       });
       
@@ -355,9 +396,11 @@ export default function VotarIndexPage() {
         }
       }
       setError(null);
-      alert('¡Votos enviados!');
+      setSuccess('¡Tus votos se han enviado correctamente!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       setError(mapApiError(err));
+      setSuccess(null);
     }
   };
 
@@ -425,6 +468,11 @@ export default function VotarIndexPage() {
                   {error && (
                     <div className="mt-3 p-2 bg-red-900/50 border border-red-800 text-red-100 rounded text-xs text-center">
                       {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="mt-3 p-2 bg-emerald-900/50 border border-emerald-800 text-emerald-100 rounded text-xs text-center">
+                      {success}
                     </div>
                   )}
                 </div>
@@ -529,14 +577,14 @@ export default function VotarIndexPage() {
                               {detalle.tipo === 'indirecto' && n.descripcion && (
                                 <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
                               )}
-                              {detalle.tipo === 'indirecto' && (() => {
-                                const owner = (n.usuarios_vinculados_detalles || [])[0];
-                                const ownerName = owner?.first_name || owner?.username;
-                                return ownerName ? (
-                                  <div className="text-xs text-cyan-400 mt-0.5">de {ownerName}</div>
-                                ) : null;
-                              })()}
                             </div>
+                            {detalle.tipo === 'indirecto' && (() => {
+                              const owner = (n.usuarios_vinculados_detalles || [])[0];
+                              const ownerName = owner?.first_name || owner?.username;
+                              return ownerName ? (
+                                <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right hidden sm:block">{ownerName}</div>
+                              ) : null;
+                            })()}
                             {sel.includes(n.id) && (
                               <div className="ml-2 text-amber-500">
                                 <svg 
@@ -598,7 +646,7 @@ export default function VotarIndexPage() {
                               <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
                                 {(() => {
                                   const owner = (n.usuarios_vinculados_detalles || [])[0];
-                                  const img = n.imagen || owner?.foto_url || owner?.foto_perfil;
+                                  const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil) as string | null;
                                   if (img) {
                                     return (
                                       <Image 
@@ -624,6 +672,13 @@ export default function VotarIndexPage() {
                                   <div className="text-xs text-zinc-400 truncate">{n.descripcion}</div>
                                 )}
                               </div>
+                              {detalle.tipo === 'indirecto' && (() => {
+                                const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                const ownerName = owner?.first_name || owner?.username;
+                                return ownerName ? (
+                                  <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right hidden sm:block">{ownerName}</div>
+                                ) : null;
+                              })()}
                             </div>
                           </button>
                         ))}
