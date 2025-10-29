@@ -20,7 +20,7 @@ interface Premio {
   slug?: string | null;
   image_url?: string | null;
   tipo?: 'directo' | 'indirecto';
-  nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>;
+  nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null; usuarios_vinculados_detalles?: UsuarioMini[] }>;
 }
 
 interface UsuarioMini { id: string; username: string; first_name?: string; last_name?: string; foto_perfil?: string | null; foto_url?: string | null; }
@@ -29,7 +29,7 @@ interface PremioDetalle extends Premio { nominados: NominadoDetalle[]; max_votos
 interface MisVotoR1Item { nominado: { id: string } }
 interface MisVotoR2Item { orden: number; nominado: { id: string } }
 interface MisVotoPremio { premio: string; ronda_1?: MisVotoR1Item[]; ronda_2?: MisVotoR2Item[] }
-interface PremioListado { id: string; nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null }>; }
+interface PremioListado { id: string; nominados_visible?: Array<{ id: string; nombre: string; descripcion: string | null; imagen: string | null; usuarios_vinculados_detalles?: UsuarioMini[] }>; }
 
 export default function VotarIndexPage() {
   const { authToken: token } = useAuth() as { authToken?: string | null };
@@ -49,6 +49,7 @@ export default function VotarIndexPage() {
   const [seleccionesGlobales, setSeleccionesGlobales] = useState<Record<string, string[]>>({});
   const [seleccionesR2, setSeleccionesR2] = useState<Record<string, { oro?: string; plata?: string; bronce?: string }>>({});
   const [myNomIds, setMyNomIds] = useState<Set<string>>(new Set());
+  const [misVotos, setMisVotos] = useState<MisVotoPremio[] | null>(null);
 
   useEffect(() => {
     const fetchPremios = async () => {
@@ -75,6 +76,19 @@ export default function VotarIndexPage() {
       } catch {}
     };
     fetchMe();
+  }, [token]);
+
+  // Cargar todos mis votos para saber si ya he votado todos los premios abiertos
+  useEffect(() => {
+    const fetchMisVotos = async () => {
+      try {
+        const data = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
+        setMisVotos(Array.isArray(data) ? data : []);
+      } catch {
+        setMisVotos([]);
+      }
+    };
+    fetchMisVotos();
   }, [token]);
 
   const ordered = useMemo(() => premios.slice().sort((a,b) => a.nombre.localeCompare(b.nombre)), [premios]);
@@ -114,7 +128,7 @@ export default function VotarIndexPage() {
         slug: base.slug,
         image_url: base.image_url,
         tipo: base.tipo,
-        nominados: (base.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
+        nominados: (base.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen, usuarios_vinculados_detalles: n.usuarios_vinculados_detalles })),
         max_votos_ronda1: 4,
       } : null;
 
@@ -148,7 +162,7 @@ export default function VotarIndexPage() {
               descripcion: base?.descripcion || null,
               estado: base?.estado || 'preparacion',
               ronda_actual: base?.ronda_actual || 1,
-              nominados: (match.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen })),
+              nominados: (match.nominados_visible || []).map(n => ({ id: n.id, nombre: n.nombre, descripcion: n.descripcion, imagen: n.imagen, usuarios_vinculados_detalles: n.usuarios_vinculados_detalles })),
               max_votos_ronda1: 4,
             } as PremioDetalle;
           }
@@ -246,14 +260,21 @@ export default function VotarIndexPage() {
       const inSlot = slots.find(k => newP[k] === id);
       if (inSlot) {
         newP[inSlot] = undefined;
+        // Persistir también en el estado global R2
+        if (detalle) setSeleccionesR2(prev2 => ({ ...prev2, [detalle.id]: { ...newP } }));
         return newP;
       }
       const free = slots.find(k => !newP[k]);
       if (free) newP[free] = id;
+      if (detalle) setSeleccionesR2(prev2 => ({ ...prev2, [detalle.id]: { ...newP } }));
       return newP;
     });
   };
-  const clearPodiumSlot = (slot: 'oro'|'plata'|'bronce') => setPodium(prev => ({ ...prev, [slot]: undefined }));
+  const clearPodiumSlot = (slot: 'oro'|'plata'|'bronce') => setPodium(prev => {
+    const np = { ...prev, [slot]: undefined };
+    if (detalle) setSeleccionesR2(prev2 => ({ ...prev2, [detalle.id]: { ...np } }));
+    return np;
+  });
 
   // Guardar selección local del premio sin enviar todavía
   const saveSelection = async () => {
@@ -397,6 +418,11 @@ export default function VotarIndexPage() {
       }
       setError(null);
       setSuccess('¡Tus votos se han enviado correctamente!');
+      // refrescar mis votos para fijar el estado de "ya has votado"
+      try {
+        const data = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
+        setMisVotos(Array.isArray(data) ? data : []);
+      } catch {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       setError(mapApiError(err));
@@ -447,36 +473,62 @@ export default function VotarIndexPage() {
                 <p className="text-zinc-400">Selecciona un premio para emitir tus votos.</p>
               </div>
               
-              {/* Sección de confirmación de votos en la parte superior */}
-              {hayAbiertos && (
-                <div className="w-full md:w-auto bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 shadow-lg">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-sm">
-                      <div className="font-medium text-amber-400">Tus votos</div>
-                      <div className="text-zinc-400 text-xs">
-                        {ordered.filter(p => p.estado === 'votacion_1').length} premios en Ronda 1 • 
-                        {ordered.filter(p => p.estado === 'votacion_2').length} en Ronda 2
+              {/* Sección superior: estado de votos o confirmación */}
+              {hayAbiertos && (() => {
+                // Calcular si YA se ha votado todo lo abierto
+                const abiertos = ordered.filter(p => p.estado === 'votacion_1' || p.estado === 'votacion_2');
+                const hasAll = abiertos.every(p => {
+                  const registro = (misVotos || []).find(v => v.premio === p.id);
+                  if (!registro) return false;
+                  if (p.estado === 'votacion_1') return Array.isArray(registro.ronda_1) && registro.ronda_1.length === 4;
+                  if (p.estado === 'votacion_2') return Array.isArray(registro.ronda_2) && registro.ronda_2.length === 3;
+                  return false;
+                });
+
+                if (hasAll) {
+                  return (
+                    <div className="w-full md:w-auto bg-emerald-900/20 border border-emerald-800/60 rounded-xl p-4 shadow-lg">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-sm">
+                          <div className="font-medium text-emerald-300">Ya has votado todos los premios abiertos</div>
+                          <div className="text-emerald-200/80 text-xs">Cuando se abra la siguiente ronda podrás volver a votar</div>
+                        </div>
+                        <Button variant="secondary" onClick={() => window.location.reload()}>Actualizar</Button>
                       </div>
                     </div>
-                    <Button 
-                      onClick={submitAllSelections}
-                      className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium py-2 px-6 rounded-lg shadow-lg transition-all hover:scale-105 w-full sm:w-auto text-center"
-                    >
-                      <span className="text-lg font-bold">Confirmar todos los votos</span>
-                    </Button>
+                  );
+                }
+
+                return (
+                  <div className="w-full md:w-auto bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 shadow-lg">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-sm">
+                        <div className="font-medium text-amber-400">Tus votos</div>
+                        <div className="text-zinc-400 text-xs">
+                          {ordered.filter(p => p.estado === 'votacion_1').length} premios en Ronda 1 • 
+                          {ordered.filter(p => p.estado === 'votacion_2').length} en Ronda 2
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={submitAllSelections}
+                        className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-medium py-2 px-6 rounded-lg shadow-lg transition-all hover:scale-105 w-full sm:w-auto text-center"
+                      >
+                        <span className="text-lg font-bold">Confirmar todos los votos</span>
+                      </Button>
+                    </div>
+                    {error && (
+                      <div className="mt-3 p-2 bg-red-900/50 border border-red-800 text-red-100 rounded text-xs text-center">
+                        {error}
+                      </div>
+                    )}
+                    {success && (
+                      <div className="mt-3 p-2 bg-emerald-900/50 border border-emerald-800 text-emerald-100 rounded text-xs text-center">
+                        {success}
+                      </div>
+                    )}
                   </div>
-                  {error && (
-                    <div className="mt-3 p-2 bg-red-900/50 border border-red-800 text-red-100 rounded text-xs text-center">
-                      {error}
-                    </div>
-                  )}
-                  {success && (
-                    <div className="mt-3 p-2 bg-emerald-900/50 border border-emerald-800 text-emerald-100 rounded text-xs text-center">
-                      {success}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {loading && <div className="text-zinc-400 py-8 text-center">Cargando premios…</div>}
@@ -582,7 +634,7 @@ export default function VotarIndexPage() {
                               const owner = (n.usuarios_vinculados_detalles || [])[0];
                               const ownerName = owner?.first_name || owner?.username;
                               return ownerName ? (
-                                <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right hidden sm:block">{ownerName}</div>
+                                <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right">{ownerName}</div>
                               ) : null;
                             })()}
                             {sel.includes(n.id) && (
@@ -676,7 +728,7 @@ export default function VotarIndexPage() {
                                 const owner = (n.usuarios_vinculados_detalles || [])[0];
                                 const ownerName = owner?.first_name || owner?.username;
                                 return ownerName ? (
-                                  <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right hidden sm:block">{ownerName}</div>
+                                  <div className="ml-auto text-xs text-cyan-400 truncate max-w-[40%] text-right">{ownerName}</div>
                                 ) : null;
                               })()}
                             </div>

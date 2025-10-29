@@ -53,6 +53,9 @@ type EstadisticasGlobales = {
 export type TopPremio = {
   premio: { id: string; nombre: string; estado: string; ronda_actual: number };
   top: Array<{ id: string; nombre: string; valor: number }>;
+  total_votos: number;
+  votantes_distintos: number;
+  total_usuarios: number;
 };
 
 export default function AdminResultadosPage() {
@@ -85,12 +88,12 @@ export default function AdminResultadosPage() {
       
       // Obtener datos en paralelo
       const [premiosRes, estadisticasRes, topsRes] = await Promise.all([
-        axiosInstance.get<Premio[]>("api/admin/premios/"),
+        axiosInstance.get<Premio[]>("api/admin/premios/" as any),
         axiosInstance.get<EstadisticasGlobales>("api/admin/estadisticas/"),
         axiosInstance.get<TopPremio[]>("api/admin/premios-top/"),
       ]);
       
-      setPremios(premiosRes.data);
+      setPremios(premiosRes.data as any);
       setEstadisticas(estadisticasRes.data);
       setTops(topsRes.data);
       
@@ -291,48 +294,65 @@ export default function AdminResultadosPage() {
             </div>
           </Card>
 
-        {/* Nueva tarjeta: Top 5 por premio abierto */}
+        {/* Seguimiento de premios abiertos - TABLA con columnas por nominados top */}
         <Card className="mb-8">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-zinc-100">Seguimiento de premios abiertos</h2>
-              <div className="text-sm text-zinc-400">Top 5 por premio (R1: votos • R2: puntos)</div>
+              <div className="text-sm text-zinc-400">Filas: premios • Columnas: top nominados (R1 votos / R2 puntos)</div>
             </div>
             {fetching ? (
               <div className="p-6 text-center text-zinc-400">Cargando datos…</div>
-            ) : (tops.length === 0) ? (
+            ) : tops.length === 0 ? (
               <div className="p-6 text-center text-zinc-500 text-sm">No hay premios abiertos ahora mismo.</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tops.map((item) => (
-                  <div key={item.premio.id} className="border border-zinc-800 rounded-lg overflow-hidden">
-                    <div className="p-3 bg-zinc-900/60 flex items-center justify-between">
-                      <div className="text-zinc-100 font-medium truncate mr-2">{item.premio.nombre}</div>
-                      <span className="px-2 py-0.5 text-[10px] rounded-full border border-zinc-700 text-zinc-300 whitespace-nowrap">Ronda {item.premio.ronda_actual}</span>
-                    </div>
-                    <div className="p-3">
-                      {item.top.length > 0 ? (
-                        <ul className="space-y-2">
-                          {item.top.map((t, idx) => (
-                            <li key={`${item.premio.id}-${t.id}`} className="flex items-center gap-3 p-2 rounded border border-zinc-800 bg-zinc-900/40">
-                              <div className="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold bg-zinc-700/60">{idx+1}</div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-zinc-100 truncate">{t.nombre}</p>
-                              </div>
-                              <div className="text-xs text-zinc-400 whitespace-nowrap">{t.valor}</div>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="text-center py-3 text-zinc-500 text-sm">Sin votos aún</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="text-left text-xs uppercase text-zinc-400">
+                      <th className="px-4 py-2 w-64">Premio</th>
+                      {[0,1,2,3,4].map(i => (
+                        <th key={i} className="px-4 py-2">Top {i+1}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tops.map(item => (
+                      <tr key={item.premio.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
+                        <td className="px-4 py-2 align-top">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-[10px] rounded-full border border-zinc-700 text-zinc-300">Ronda {item.premio.ronda_actual}</span>
+                            <div className="text-sm font-medium text-zinc-100">{item.premio.nombre}</div>
+                          </div>
+                          <div className="text-xs text-zinc-500 mt-1">
+                            {item.votantes_distintos} votantes • {item.total_votos} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}
+                          </div>
+                        </td>
+                        {[0,1,2,3,4].map(i => {
+                          const t = item.top[i];
+                          return (
+                            <td key={`${item.premio.id}-${i}`} className="px-4 py-2 align-top">
+                              {t ? (
+                                <div className="text-sm text-zinc-200">
+                                  <div className="font-medium truncate" title={t.nombre}>{t.nombre}</div>
+                                  <div className="text-xs text-zinc-500">{t.valor} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}</div>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-zinc-600">—</div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </Card>
+
+        
 
           <Card>
             <div className="p-4">
@@ -456,10 +476,18 @@ export default function AdminResultadosPage() {
                           <span className="px-2 py-1 text-xs rounded-full border border-zinc-700 text-zinc-300 whitespace-nowrap">Ronda {p.ronda_actual}</span>
                         </td>
                         <td className="px-4 py-2 align-top">
-                          <div className="w-40 bg-zinc-800 rounded-full h-2.5">
-                            <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${p.porcentaje_participacion || 0}%` }} />
-                          </div>
-                          <div className="text-xs text-zinc-500 mt-1">{p.total_votos || 0} votos • {p.porcentaje_participacion || 0}%</div>
+                          {(() => {
+                            const t = tops.find(x => x.premio.id === p.id);
+                            const porcentaje = t ? Math.round((t.votantes_distintos / Math.max(1, t.total_usuarios)) * 100) : (p.porcentaje_participacion || 0);
+                            return (
+                              <div>
+                                <div className="w-40 bg-zinc-800 rounded-full h-2.5">
+                                  <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${porcentaje}%` }} />
+                                </div>
+                                <div className="text-xs text-zinc-500 mt-1">{t ? t.total_votos : (p.total_votos || 0)} votos • {porcentaje}%</div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-2 align-top text-right">
                           <div className="flex justify-end gap-2">
