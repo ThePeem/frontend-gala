@@ -27,6 +27,7 @@ export interface AwardCardProps {
   primaryDisabled?: boolean;
   showHistoricSecondary?: boolean;
   onSecondaryClick?: (p: PremioLike) => void;
+  showEstadoPanel?: boolean; // permite ocultar el panel interior de estado/ganador
 }
 
 function getEstadoTextFlexible(estado: string, ronda: number) {
@@ -48,7 +49,7 @@ function getEstadoStylesFlexible(estado: string) {
   }
 }
 
-export default function AwardCard({ premio, primaryText, onPrimaryClick, primaryDisabled, showHistoricSecondary, onSecondaryClick }: AwardCardProps) {
+export default function AwardCard({ premio, primaryText, onPrimaryClick, primaryDisabled, showHistoricSecondary, onSecondaryClick, showEstadoPanel = true }: AwardCardProps) {
   const isResultados = premio.estado === 'resultados';
   const open = premio.estado === 'abierto' || premio.estado === 'votacion_1' || premio.estado === 'votacion_2';
   const estadoText = getEstadoTextFlexible(premio.estado, premio.ronda_actual);
@@ -102,6 +103,7 @@ export default function AwardCard({ premio, primaryText, onPrimaryClick, primary
             <p className="text-zinc-400 mb-4">{premio.descripcion}</p>
           )}
 
+          {showEstadoPanel && (
           <div className={`rounded-xl border mb-4 ${
             isResultados ? 'border-amber-800/50 bg-amber-900/10' : 'border-zinc-800 bg-zinc-900/40'
           }`}>
@@ -136,6 +138,7 @@ export default function AwardCard({ premio, primaryText, onPrimaryClick, primary
               )}
             </div>
           </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button 

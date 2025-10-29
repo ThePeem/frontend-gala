@@ -293,67 +293,7 @@ export default function AdminResultadosPage() {
               )}
             </div>
           </Card>
-
-        {/* Seguimiento de premios abiertos - TABLA con columnas por nominados top */}
-        <Card className="mb-8">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-zinc-100">Seguimiento de premios abiertos</h2>
-              <div className="text-sm text-zinc-400">Filas: premios • Columnas: top nominados (R1 votos / R2 puntos)</div>
-            </div>
-            {fetching ? (
-              <div className="p-6 text-center text-zinc-400">Cargando datos…</div>
-            ) : tops.length === 0 ? (
-              <div className="p-6 text-center text-zinc-500 text-sm">No hay premios abiertos ahora mismo.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="text-left text-xs uppercase text-zinc-400">
-                      <th className="px-4 py-2 w-64">Premio</th>
-                      {[0,1,2,3,4].map(i => (
-                        <th key={i} className="px-4 py-2">Top {i+1}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tops.map(item => (
-                      <tr key={item.premio.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
-                        <td className="px-4 py-2 align-top">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 text-[10px] rounded-full border border-zinc-700 text-zinc-300">Ronda {item.premio.ronda_actual}</span>
-                            <div className="text-sm font-medium text-zinc-100">{item.premio.nombre}</div>
-                          </div>
-                          <div className="text-xs text-zinc-500 mt-1">
-                            {item.votantes_distintos} votantes • {item.total_votos} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}
-                          </div>
-                        </td>
-                        {[0,1,2,3,4].map(i => {
-                          const t = item.top[i];
-                          return (
-                            <td key={`${item.premio.id}-${i}`} className="px-4 py-2 align-top">
-                              {t ? (
-                                <div className="text-sm text-zinc-200">
-                                  <div className="font-medium truncate" title={t.nombre}>{t.nombre}</div>
-                                  <div className="text-xs text-zinc-500">{t.valor} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}</div>
-                                </div>
-                              ) : (
-                                <div className="text-xs text-zinc-600">—</div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        
-
+          {/* Resumen de Votación (2/3 del grid) */}
           <Card>
             <div className="p-4">
               <h3 className="text-lg font-semibold text-zinc-100 mb-4">Resumen de Votación</h3>
@@ -368,7 +308,7 @@ export default function AdminResultadosPage() {
               </div>
             </div>
           </Card>
-
+          {/* Acciones (3/3 del grid) */}
           <Card>
             <div className="p-4">
               <h3 className="text-lg font-semibold text-zinc-100 mb-4">Acciones</h3>
@@ -435,21 +375,22 @@ export default function AdminResultadosPage() {
           </Card>
         </div>
 
-        <Card className="mb-8">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-zinc-100">Gestión de Premios</h2>
-              <div className="text-sm text-zinc-400">Control de estado por premio</div>
-            </div>
-            {fetching ? (
-              <div className="p-6 text-center text-zinc-400">Cargando premios...</div>
-            ) : error ? (
-              <div className="p-6 text-center text-red-400">
-                <p>{error}</p>
-                <Button variant="secondary" onClick={fetchData} className="mt-2">Reintentar</Button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <Card className="lg:col-span-3">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-zinc-100">Gestión de Premios</h2>
+                <div className="text-sm text-zinc-400">Control de estado por premio</div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
+              {fetching ? (
+                <div className="p-6 text-center text-zinc-400">Cargando premios...</div>
+              ) : error ? (
+                <div className="p-6 text-center text-red-400">
+                  <p>{error}</p>
+                  <Button variant="secondary" onClick={fetchData} className="mt-2">Reintentar</Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead>
                     <tr className="text-left text-xs uppercase text-zinc-400">
@@ -511,7 +452,65 @@ export default function AdminResultadosPage() {
               </div>
             )}
           </div>
-        </Card>
+          </Card>
+          {/* Seguimiento de premios abiertos - TABLA con columnas por nominados top */}
+          <Card className="lg:col-span-3">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-zinc-100">Seguimiento de premios abiertos</h2>
+                <div className="text-sm text-zinc-400">Filas: premios • Columnas: top nominados (R1 votos / R2 puntos)</div>
+              </div>
+              {fetching ? (
+                <div className="p-6 text-center text-zinc-400">Cargando datos…</div>
+              ) : tops.length === 0 ? (
+                <div className="p-6 text-center text-zinc-500 text-sm">No hay premios abiertos ahora mismo.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-zinc-400">
+                        <th className="px-4 py-2 w-64">Premio</th>
+                        {[0,1,2,3,4].map(i => (
+                          <th key={i} className="px-4 py-2">Top {i+1}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tops.map(item => (
+                        <tr key={item.premio.id} className="odd:bg-zinc-950/30 even:bg-zinc-900/30">
+                          <td className="px-4 py-2 align-top">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 text-[10px] rounded-full border border-zinc-700 text-zinc-300">Ronda {item.premio.ronda_actual}</span>
+                              <div className="text-sm font-medium text-zinc-100">{item.premio.nombre}</div>
+                            </div>
+                            <div className="text-xs text-zinc-500 mt-1">
+                              {item.votantes_distintos} votantes • {item.total_votos} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}
+                            </div>
+                          </td>
+                          {[0,1,2,3,4].map(i => {
+                            const t = item.top[i];
+                            return (
+                              <td key={`${item.premio.id}-${i}`} className="px-4 py-2 align-top">
+                                {t ? (
+                                  <div className="text-sm text-zinc-200">
+                                    <div className="font-medium truncate" title={t.nombre}>{t.nombre}</div>
+                                    <div className="text-xs text-zinc-500">{t.valor} {item.premio.ronda_actual === 2 ? 'pts' : 'votos'}</div>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-zinc-600">—</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
 
         {resultadosVista && resultadosVista.length > 0 && (
           <Card>

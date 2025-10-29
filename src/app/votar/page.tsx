@@ -371,7 +371,7 @@ export default function VotarIndexPage() {
         }
       });
       
-      const abiertosR2 = ordered.filter(p => p.estado === 'votacion_2');
+      const abiertosR2 = ordered.filter(p => p.estado === 'votacion_2' && (Array.isArray(p.nominados_visible) ? p.nominados_visible.length : 0) >= 3);
       abiertosR2.forEach(p => {
         const pod = seleccionesR2[p.id] || {};
         if (!pod.oro || !pod.plata || !pod.bronce) {
@@ -481,7 +481,11 @@ export default function VotarIndexPage() {
                   const registro = (misVotos || []).find(v => v.premio === p.id);
                   if (!registro) return false;
                   if (p.estado === 'votacion_1') return Array.isArray(registro.ronda_1) && registro.ronda_1.length === 4;
-                  if (p.estado === 'votacion_2') return Array.isArray(registro.ronda_2) && registro.ronda_2.length === 3;
+                  if (p.estado === 'votacion_2') {
+                    const finalists = Array.isArray(p.nominados_visible) ? p.nominados_visible.length : 0;
+                    if (finalists < 3) return true; // no exige podio si no hay suficientes finalistas
+                    return Array.isArray(registro.ronda_2) && registro.ronda_2.length === 3;
+                  }
                   return false;
                 });
 
@@ -544,34 +548,37 @@ export default function VotarIndexPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {!loading && ordered.map((premio) => {
-              const isOpen = (premio.estado === 'votacion_1' || premio.estado === 'votacion_2');
-              const like: PremioLike = {
-                id: premio.id,
-                nombre: premio.nombre,
-                descripcion: premio.descripcion,
-                estado: premio.estado,
-                ronda_actual: premio.ronda_actual,
-                slug: premio.slug ?? null,
-                image_url: premio.image_url ?? null,
-              };
-              return (
-                <div key={premio.id} className="relative">
-                  <AwardCard
-                    premio={like}
-                    primaryText="Votar"
-                    onPrimaryClick={(p) => isOpen ? openModal(p.id) : undefined}
-                    primaryDisabled={!isOpen}
-                  />
-                  {isOpen && (seleccionesGlobales[premio.id]?.length > 0 || seleccionesR2[premio.id]) && (
-                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                      ✓
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {!loading && ordered.filter(p => p.estado === 'votacion_1' || p.estado === 'votacion_2').map((premio) => {
+                const isOpen = true;
+                const like: PremioLike = {
+                  id: premio.id,
+                  nombre: premio.nombre,
+                  descripcion: premio.descripcion,
+                  estado: premio.estado,
+                  ronda_actual: premio.ronda_actual,
+                  slug: premio.slug ?? null,
+                  image_url: premio.image_url ?? null,
+                };
+                return (
+                  <div key={premio.id} className="relative">
+                    <AwardCard
+                      premio={like}
+                      primaryText="Votar"
+                      onPrimaryClick={(p) => openModal(p.id)}
+                      primaryDisabled={!isOpen}
+                      showEstadoPanel={false}
+                    />
+                    {(seleccionesGlobales[premio.id]?.length > 0 || seleccionesR2[premio.id]) && (
+                      <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        ✓
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <Modal 
@@ -601,29 +608,31 @@ export default function VotarIndexPage() {
                           aria-pressed={sel.includes(n.id)}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
-                              {(() => {
-                                const owner = (n.usuarios_vinculados_detalles || [])[0];
-                                const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil || null) as string | null;
-                                if (img) {
+                            {detalle.tipo !== 'indirecto' && (
+                              <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
+                                {(() => {
+                                  const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                  const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil || null) as string | null;
+                                  if (img) {
+                                    return (
+                                      <Image 
+                                        src={img} 
+                                        alt={n.nombre} 
+                                        width={40} 
+                                        height={40} 
+                                        className="object-cover w-full h-full" 
+                                        unoptimized 
+                                      />
+                                    );
+                                  }
                                   return (
-                                    <Image 
-                                      src={img} 
-                                      alt={n.nombre} 
-                                      width={40} 
-                                      height={40} 
-                                      className="object-cover w-full h-full" 
-                                      unoptimized 
-                                    />
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
+                                      {n.nombre.charAt(0).toUpperCase()}
+                                    </div>
                                   );
-                                }
-                                return (
-                                  <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
-                                    {n.nombre.charAt(0).toUpperCase()}
-                                  </div>
-                                );
-                              })()}
-                            </div>
+                                })()}
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="text-sm font-medium text-zinc-100 truncate">{n.nombre}</div>
                               {detalle.tipo === 'indirecto' && n.descripcion && (
@@ -695,29 +704,31 @@ export default function VotarIndexPage() {
                             aria-pressed={Object.values(podium).includes(n.id)}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
-                                {(() => {
-                                  const owner = (n.usuarios_vinculados_detalles || [])[0];
-                                  const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil) as string | null;
-                                  if (img) {
+                              {detalle.tipo !== 'indirecto' && (
+                                <div className="relative h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
+                                  {(() => {
+                                    const owner = (n.usuarios_vinculados_detalles || [])[0];
+                                    const img = toImg(n.imagen || owner?.foto_url || owner?.foto_perfil) as string | null;
+                                    if (img) {
+                                      return (
+                                        <Image 
+                                          src={img} 
+                                          alt={n.nombre} 
+                                          width={40} 
+                                          height={40} 
+                                          className="object-cover w-full h-full" 
+                                          unoptimized 
+                                        />
+                                      );
+                                    }
                                     return (
-                                      <Image 
-                                        src={img} 
-                                        alt={n.nombre} 
-                                        width={40} 
-                                        height={40} 
-                                        className="object-cover w-full h-full" 
-                                        unoptimized 
-                                      />
+                                      <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
+                                        {n.nombre.charAt(0).toUpperCase()}
+                                      </div>
                                     );
-                                  }
-                                  return (
-                                    <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-zinc-400 text-xs">
-                                      {n.nombre.charAt(0).toUpperCase()}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
+                                  })()}
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <div className="text-sm font-medium text-zinc-100">{n.nombre}</div>
                                 {detalle.tipo === 'indirecto' && n.descripcion && (
