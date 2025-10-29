@@ -406,9 +406,9 @@ export default function VotarIndexPage() {
       for (const p of abiertosR2) {
         const pod = seleccionesR2[p.id]!;
         const votosR2 = [
-          { premio: p.id, nominado: pod.oro, ronda: 2, orden: 1 },
-          { premio: p.id, nominado: pod.plata, ronda: 2, orden: 2 },
-          { premio: p.id, nominado: pod.bronce, ronda: 2, orden: 3 },
+          { premio: p.id, nominado: pod.oro, ronda: 2, orden_ronda2: 1 },
+          { premio: p.id, nominado: pod.plata, ronda: 2, orden_ronda2: 2 },
+          { premio: p.id, nominado: pod.bronce, ronda: 2, orden_ronda2: 3 },
         ];
         for (const v of votosR2) {
           // debug ligero para diagnosticar posibles 400
@@ -549,7 +549,7 @@ export default function VotarIndexPage() {
           </div>
 
           <div className="max-w-6xl mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
               {!loading && ordered.filter(p => p.estado === 'votacion_1' || p.estado === 'votacion_2').map((premio) => {
                 const isOpen = true;
                 const like: PremioLike = {
