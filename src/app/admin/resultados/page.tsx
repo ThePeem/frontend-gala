@@ -88,12 +88,12 @@ export default function AdminResultadosPage() {
       
       // Obtener datos en paralelo
       const [premiosRes, estadisticasRes, topsRes] = await Promise.all([
-        axiosInstance.get<Premio[]>("api/admin/premios/" as any),
+        axiosInstance.get<Premio[]>("api/admin/premios/"),
         axiosInstance.get<EstadisticasGlobales>("api/admin/estadisticas/"),
         axiosInstance.get<TopPremio[]>("api/admin/premios-top/"),
       ]);
       
-      setPremios(premiosRes.data as any);
+      setPremios(premiosRes.data);
       setEstadisticas(estadisticasRes.data);
       setTops(topsRes.data);
       
