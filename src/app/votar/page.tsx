@@ -590,7 +590,7 @@ export default function VotarIndexPage() {
               <div className="text-zinc-400 py-6 text-center">Cargando premio…</div>
             ) : detalle ? (
               detalle.ronda_actual === 1 ? (
-                <div className="p-1">
+                <div className="p-1 max-h-[70vh] overflow-y-auto pr-1">
                   <div className="space-y-3">
                     <p className="text-sm text-zinc-400 mb-3">
                       Selecciona hasta {detalle.max_votos_ronda1 || 4} nominados
@@ -686,7 +686,7 @@ export default function VotarIndexPage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-1">
+                <div className="p-1 max-h-[70vh] overflow-y-auto pr-1">
                   <div className="space-y-4">
                     <p className="text-sm text-zinc-400">Asigna Oro, Plata y Bronce entre los finalistas</p>
                     
