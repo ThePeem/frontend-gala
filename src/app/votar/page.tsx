@@ -395,14 +395,19 @@ export default function VotarIndexPage() {
         return;
       }
 
-      // Enviar R1
+      const erroresEnvio: string[] = [];
+      // Enviar R1 de forma resiliente
       for (const p of abiertosR1) {
-        const s = seleccionesGlobales[p.id];
+        const s = seleccionesGlobales[p.id] || [];
         for (const nomId of s) {
-          await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify({ premio: p.id, nominado: nomId, ronda: 1 }) }, token || undefined);
+          try {
+            await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify({ premio: p.id, nominado: nomId, ronda: 1 }) }, token || undefined);
+          } catch (e) {
+            erroresEnvio.push(`R1 • ${p.nombre}: ${mapApiError(e as unknown)}`);
+          }
         }
       }
-      // Enviar R2
+      // Enviar R2 de forma resiliente
       for (const p of abiertosR2) {
         const pod = seleccionesR2[p.id]!;
         const votosR2 = [
@@ -411,13 +416,21 @@ export default function VotarIndexPage() {
           { premio: p.id, nominado: pod.bronce, ronda: 2, orden_ronda2: 3 },
         ];
         for (const v of votosR2) {
-          // debug ligero para diagnosticar posibles 400
-          console.log('[submit R2] payload', v);
-          await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
+          try {
+            console.log('[submit R2] payload', v);
+            await apiFetch('/api/votar/', { method: 'POST', body: JSON.stringify(v) }, token || undefined);
+          } catch (e) {
+            erroresEnvio.push(`R2 • ${p.nombre}: ${mapApiError(e as unknown)}`);
+          }
         }
       }
-      setError(null);
-      setSuccess('¡Tus votos se han enviado correctamente!');
+      if (erroresEnvio.length > 0) {
+        setError(erroresEnvio.join(' · '));
+        setSuccess('Se enviaron parcialmente tus votos. Revisa los errores.');
+      } else {
+        setError(null);
+        setSuccess('¡Tus votos se han enviado correctamente!');
+      }
       // refrescar mis votos para fijar el estado de "ya has votado"
       try {
         const data = await apiFetch<MisVotoPremio[]>(`/api/mis-votos/`, {}, token || undefined);
